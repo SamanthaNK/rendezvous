@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=Geologica:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+    body {
+        @apply font-body text-base text-gray-700 bg-bright-snow antialiased;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        @apply font-heading text-ink-black;
+    }
+}
+
+/* Custom component classes */
+@layer components {
+    .container-custom {
+        @apply max-w-screen-xl mx-auto px-10 md:px-5;
+    }
+
+    .btn-base {
+        @apply px-5 py-2.5 font-body font-semibold rounded-md transition-all duration-200;
+    }
+
+    .input-base {
+        @apply w-full px-4 py-3 font-body text-base border-[1.5px] border-gray-200 rounded-md;
+        @apply focus:outline-none focus:border-teal focus:ring-4 focus:ring-teal/10;
+        @apply disabled:bg-gray-100 disabled:cursor-not-allowed;
+        @apply placeholder:text-gray-400 transition-all duration-200;
+    }
+
+    .card-base {
+        @apply bg-white rounded-xl border border-gray-200 shadow-card;
+        @apply hover:-translate-y-1 hover:shadow-card-hover;
+        @apply transition-all duration-300 ease-out;
+    }
+}
+
+/* Custom utilities */
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+}
