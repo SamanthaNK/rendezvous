@@ -3,6 +3,10 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import connectDB from './config/database.js';
+import { generateToken } from './utils/jwt.js';
+import { authenticateToken } from './middleware/auth.js';
+import { requireAdmin, requireOrganizer, requireUser } from './middleware/roleCheck.js';
+import authRoutes from './routes/auth.js';
 
 dotenv.config();
 
@@ -20,12 +24,68 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Routes
+app.use('/api/auth', authRoutes);
+
 // Health check route
 app.get('/health', (req, res) => {
     res.json({
         success: true,
         message: 'Rendezvous API is running',
         timestamp: new Date().toISOString()
+    });
+});
+
+// Dummy routes for testing authentication middleware
+app.get('/api/test/generate-token', (req, res) => {
+    // Generate test tokens for different roles
+    const testUsers = {
+        user: { id: '123', email: 'user@example.com', role: 'user' },
+        organizer: { id: '456', email: 'organizer@example.com', role: 'organizer' },
+        admin: { id: '789', email: 'admin@example.com', role: 'admin' }
+    };
+
+    const tokens = {};
+    for (const [role, user] of Object.entries(testUsers)) {
+        tokens[role] = generateToken(user);
+    }
+
+    res.json({
+        success: true,
+        message: 'Test tokens generated',
+        tokens
+    });
+});
+
+app.get('/api/test/protected', authenticateToken, (req, res) => {
+    res.json({
+        success: true,
+        message: 'Protected route accessed successfully',
+        user: req.user
+    });
+});
+
+app.get('/api/test/user-only', authenticateToken, requireUser, (req, res) => {
+    res.json({
+        success: true,
+        message: 'User-only route accessed',
+        user: req.user
+    });
+});
+
+app.get('/api/test/organizer-only', authenticateToken, requireOrganizer, (req, res) => {
+    res.json({
+        success: true,
+        message: 'Organizer-only route accessed',
+        user: req.user
+    });
+});
+
+app.get('/api/test/admin-only', authenticateToken, requireAdmin, (req, res) => {
+    res.json({
+        success: true,
+        message: 'Admin-only route accessed',
+        user: req.user
     });
 });
 
