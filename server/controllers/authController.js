@@ -1,182 +1,337 @@
-import bcrypt from 'bcrypt';
-import { generateToken, verifyToken } from '../utils/jwt.js';
+import User from '../models/userModel.js';
+import {
+    generateAccessToken,
+    generateVerificationToken,
+    generatePasswordResetToken,
+    hashToken,
+    createTokenResponse,
+} from '../utils/jwt.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
 
-/**
- * Register a new user
- * @route POST /api/auth/register
- */
+// Register a new user
 export const register = async (req, res) => {
     try {
-        const { email, password, firstName, lastName, role = 'user' } = req.body;
+        const { name, email, password, interests, location } = req.body;
 
-        // Validation (ideally should be done with express-validator middleware)
-        if (!email || !password || !firstName || !lastName) {
+        if (!name || !email || !password || !interests || !location) {
             return res.status(400).json({
                 success: false,
-                message: 'Missing required fields: email, password, firstName, lastName'
+                message: 'Please provide all required fields',
             });
         }
 
-        // TODO: Check if user already exists in database
-        // const existingUser = await User.findOne({ email });
-        // if (existingUser) {
-        //     return res.status(409).json({
-        //         success: false,
-        //         message: 'Email already registered'
-        //     });
-        // }
+        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email already registered',
+            });
+        }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        if (!Array.isArray(interests) || interests.length < 3 || interests.length > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please select between 3 and 5 interests',
+            });
+        }
 
-        // TODO: Create new user in database
-        // const newUser = new User({
-        //     email,
-        //     password: hashedPassword,
-        //     firstName,
-        //     lastName,
-        //     role
-        // });
-        // await newUser.save();
+        if (!location.city) {
+            return res.status(400).json({
+                success: false,
+                message: 'City is required',
+            });
+        }
 
-        // Generate tokens
-        const user = { email, firstName, lastName, role };
-        const accessToken = generateToken(user);
+        const verificationToken = generateVerificationToken();
+        const hashedToken = hashToken(verificationToken);
+
+        const user = await User.create({
+            name,
+            email: email.toLowerCase(),
+            password,
+            interests,
+            location,
+            emailVerificationToken: hashedToken,
+            emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        });
+
+        try {
+            await sendVerificationEmail(user.email, user.name, verificationToken);
+        } catch (emailError) {
+            console.error('Email sending failed:', emailError);
+            // Continue registration even if email fails
+        }
+
+        const token = generateAccessToken(user._id);
 
         res.status(201).json({
             success: true,
-            message: 'User registered successfully',
             data: {
-                user,
-                accessToken
-            }
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    interests: user.interests,
+                    location: user.location,
+                    role: user.role,
+                    isEmailVerified: user.isEmailVerified,
+                },
+                token,
+            },
+            message: 'Registration successful. Please check your email to verify your account.',
         });
     } catch (error) {
-        console.error('Register error:', error);
+        console.error('Registration error:', error);
         res.status(500).json({
             success: false,
             message: 'Registration failed',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: error.message,
         });
     }
 };
 
-/**
- * Login user with email and password
- * @route POST /api/auth/login
- */
+// Login user
 export const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, rememberMe } = req.body;
 
-        // Validation
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password are required'
+                message: 'Please provide email and password',
             });
         }
 
-        // TODO: Find user in database
-        // const user = await User.findOne({ email });
-        // if (!user) {
-        //     return res.status(401).json({
-        //         success: false,
-        //         message: 'Invalid email or password'
-        //     });
-        // }
+        const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
-        // TODO: Compare passwords
-        // const isPasswordValid = await bcrypt.compare(password, user.password);
-        // if (!isPasswordValid) {
-        //     return res.status(401).json({
-        //         success: false,
-        //         message: 'Invalid email or password'
-        //     });
-        // }
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password',
+            });
+        }
 
-        // Generate tokens
-        const user = { email }; // TODO: Replace with actual user data
-        const accessToken = generateToken(user);
+        const isPasswordValid = await user.comparePassword(password);
 
-        res.json({
-            success: true,
-            message: 'Login successful',
-            data: {
-                user,
-                accessToken
-            }
-        });
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password',
+            });
+        }
+
+        if (!user.isActive) {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.',
+            });
+        }
+
+        user.lastLogin = new Date();
+        await user.save({ validateBeforeSave: false });
+
+        // Generate token (with extended expiry if rememberMe)
+        const token = generateAccessToken(user._id);
+
+        res.json(createTokenResponse(user, token));
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({
             success: false,
             message: 'Login failed',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: error.message,
         });
     }
 };
 
-/**
- * Refresh access token
- * @route POST /api/auth/refresh
- */
-export const refreshToken = (req, res) => {
+// Logout user
+export const logout = async (req, res) => {
+    // Logout will be handled on the client side by deleting the token
     try {
-        const { refreshToken: token } = req.body;
-
-        if (!token) {
-            return res.status(400).json({
-                success: false,
-                message: 'Refresh token is required'
-            });
-        }
-
-        // Verify refresh token
-        const decoded = verifyToken(token);
-
-        // Generate new access token
-        const newAccessToken = generateToken({
-            email: decoded.email,
-            role: decoded.role
-        });
-
         res.json({
             success: true,
-            message: 'Token refreshed successfully',
-            data: {
-                accessToken: newAccessToken
-            }
-        });
-    } catch (error) {
-        console.error('Refresh token error:', error);
-        res.status(401).json({
-            success: false,
-            message: 'Token refresh failed',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
-    }
-};
-
-/**
- * Logout user (can be used for token blacklisting in future)
- * @route POST /api/auth/logout
- */
-export const logout = (req, res) => {
-    try {
-        // TODO: Implement token blacklisting if needed
-        // For now, logout is handled client-side by removing the token
-
-        res.json({
-            success: true,
-            message: 'Logout successful'
+            message: 'Logout successful',
         });
     } catch (error) {
         console.error('Logout error:', error);
         res.status(500).json({
             success: false,
             message: 'Logout failed',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: error.message,
+        });
+    }
+};
+
+// Verify email
+export const verifyEmail = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Verification token is required',
+            });
+        }
+
+        const hashedToken = hashToken(token);
+
+        const user = await User.findOne({
+            emailVerificationToken: hashedToken,
+            emailVerificationExpires: { $gt: Date.now() },
+        }).select('+emailVerificationToken');
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired verification token',
+            });
+        }
+
+        user.isEmailVerified = true;
+        user.emailVerificationToken = undefined;
+        user.emailVerificationExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        res.json({
+            success: true,
+            message: 'Email verified successfully',
+        });
+    } catch (error) {
+        console.error('Email verification error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Email verification failed',
+            error: error.message,
+        });
+    }
+};
+
+// Forgot password
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required',
+            });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+
+        if (!user) {
+            return res.json({
+                success: true,
+                message: 'If an account with that email exists, a password reset link has been sent.',
+            });
+        }
+
+        const { token, expires } = generatePasswordResetToken();
+        const hashedToken = hashToken(token);
+
+        user.passwordResetToken = hashedToken;
+        user.passwordResetExpires = expires;
+        await user.save({ validateBeforeSave: false });
+
+        try {
+            await sendPasswordResetEmail(user.email, user.name, token);
+        } catch (emailError) {
+            console.error('Password reset email failed:', emailError);
+            user.passwordResetToken = undefined;
+            user.passwordResetExpires = undefined;
+            await user.save({ validateBeforeSave: false });
+
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send password reset email. Please try again.',
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Password reset link sent to your email',
+        });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process password reset request',
+            error: error.message,
+        });
+    }
+};
+
+// Reset password
+export const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        if (!token || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token and new password are required',
+            });
+        }
+
+        if (newPassword.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters long',
+            });
+        }
+
+        const hashedToken = hashToken(token);
+
+        const user = await User.findOne({
+            passwordResetToken: hashedToken,
+            passwordResetExpires: { $gt: Date.now() },
+        }).select('+passwordResetToken');
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired reset token',
+            });
+        }
+
+        user.password = newPassword;
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Password reset successful. You can now login with your new password.',
+        });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Password reset failed',
+            error: error.message,
+        });
+    }
+};
+
+// Get current user profile
+export const getCurrentUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id)
+            .populate('followedOrganizers', 'name organizationName isVerified')
+            .select('-password');
+
+        res.json({
+            success: true,
+            data: { user },
+        });
+    } catch (error) {
+        console.error('Get current user error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch user data',
+            error: error.message,
         });
     }
 };

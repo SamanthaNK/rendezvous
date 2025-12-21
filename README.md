@@ -162,26 +162,10 @@ rendezvous/
 
 ## API Documentation
 
-The API follows RESTful conventions and returns JSON responses in this format:
+The API follows RESTful conventions and returns JSON responses.
 
-```javascript
-{
-  "success": true,
-  "data": { /* your actual data */ },
-  "message": "Human-readable message"
-}
-```
-
-Error responses look like:
-```javascript
-{
-  "success": false,
-  "message": "What went wrong",
-  "error": "Technical details (only in development mode)"
-}
-```
-
-Full API documentation is in `postman documentation`
+Full API documentation is available on Postman:
+**[Full API Documentation (Postman)](https://documenter.getpostman.com/view/49640730/2sB3dWrSQ3)**
 
 ## Deployment
 
