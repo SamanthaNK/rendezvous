@@ -4,10 +4,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom base styles */
 @layer base {
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
     body {
         @apply font-body text-base text-gray-700 bg-bright-snow antialiased;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
     h1,
@@ -17,6 +28,16 @@
     h5,
     h6 {
         @apply font-heading text-ink-black;
+    }
+
+    button {
+        font-family: var(--font-body);
+    }
+
+    input,
+    textarea,
+    select {
+        font-family: var(--font-body);
     }
 }
 
