@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Search, Menu, X, User, Heart, Calendar, LogOut } from 'lucide-react';
-import { selectIsAuthenticated, selectCurrentUser } from '../../store/authSlice';
+import { selectIsAuthenticated, selectCurrentUser, logout } from '../store/authSlice';
+import { authAPI } from '../services/api';
 import Container from './Container';
-import Button from '../common/Button';
-import IconButton from '../common/IconButton';
+import Button from '../components/common/Button';
+import IconButton from '../components/common/IconButton';
 
 function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -13,6 +14,7 @@ function Navbar() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const currentUser = useSelector(selectCurrentUser);
+    const dispatch = useDispatch();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -24,6 +26,17 @@ function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (isUserMenuOpen && !event.target.closest('.user-menu-container')) {
+                setIsUserMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isUserMenuOpen]);
+
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
     };
@@ -32,9 +45,16 @@ function Navbar() {
         setIsUserMenuOpen(!isUserMenuOpen);
     };
 
-    const handleLogout = () => {
-        // Logout will be implemented with Redux action
-        console.log('Logout clicked');
+    const handleLogout = async () => {
+        try {
+            await authAPI.logout();
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            dispatch(logout());
+            navigate('/');
+            setIsUserMenuOpen(false);
+        }
     };
 
     return (
@@ -51,9 +71,9 @@ function Navbar() {
                         className="flex items-center gap-2 group"
                         aria-label="Rendezvous home"
                     >
-                        <div className="w-2 h-2 bg-lime-cream rounded-full transition-transform group-hover:scale-125" />
+                        <div className="w-4 h-4 bg-lime-cream rounded-full transition-transform group-hover:scale-125" />
                         <span className="font-logo text-2xl font-semibold tracking-tight text-ink-black">
-                            Rendezvous
+                            rendezvous
                         </span>
                     </Link>
 
@@ -88,7 +108,7 @@ function Navbar() {
                         />
 
                         {isAuthenticated ? (
-                            <div className="relative">
+                            <div className="relative user-menu-container">
                                 <button
                                     onClick={toggleUserMenu}
                                     className="hidden md:flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
@@ -201,7 +221,35 @@ function Navbar() {
                         >
                             Search Events
                         </Link>
-                        {!isAuthenticated && (
+
+                        {isAuthenticated ? (
+                            <>
+                                <div className="h-px bg-gray-200 my-2" />
+                                <Link
+                                    to="/profile"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    Profile
+                                </Link>
+                                <Link
+                                    to="/saved"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    Saved Events
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        handleLogout();
+                                        setIsMobileMenuOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 rounded-md text-base font-body text-error hover:bg-error/5 transition-colors"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
                             <>
                                 <div className="h-px bg-gray-200 my-2" />
                                 <div className="space-y-2 px-4">

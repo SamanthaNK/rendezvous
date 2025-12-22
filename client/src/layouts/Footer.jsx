@@ -36,9 +36,9 @@ function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
                     <div>
                         <Link to="/" className="flex items-center gap-2 mb-4">
-                            <div className="w-2 h-2 bg-lime-cream rounded-full" />
+                            <div className="w-4 h-4 bg-lime-cream rounded-full" />
                             <span className="font-logo text-2xl font-semibold tracking-tight">
-                                Rendezvous
+                                rendezvous
                             </span>
                         </Link>
                         <p className="font-body text-sm text-white/70 mb-6 leading-relaxed">
@@ -118,7 +118,7 @@ function Footer() {
                             {currentYear} Rendezvous. All rights reserved.
                         </p>
                         <p className="font-body text-sm text-white/50">
-                            Made with care in Cameroon
+                            Made with care by the Rendezvous Team
                         </p>
                     </div>
                 </div>

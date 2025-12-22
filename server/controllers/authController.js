@@ -144,9 +144,8 @@ export const login = async (req, res) => {
     }
 };
 
-// Logout user
+// Logout user - will be handled on the client side by deleting the token
 export const logout = async (req, res) => {
-    // Logout will be handled on the client side by deleting the token
     try {
         res.json({
             success: true,
@@ -202,6 +201,56 @@ export const verifyEmail = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Email verification failed',
+            error: error.message,
+        });
+    }
+};
+
+export const resendVerificationEmail = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        if (user.isEmailVerified) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is already verified',
+            });
+        }
+
+        // Generate new verification token
+        const verificationToken = generateVerificationToken();
+        const hashedToken = hashToken(verificationToken);
+
+        user.emailVerificationToken = hashedToken;
+        user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        await user.save({ validateBeforeSave: false });
+
+        try {
+            await sendVerificationEmail(user.email, user.name, verificationToken);
+        } catch (emailError) {
+            console.error('Email sending failed:', emailError);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send verification email. Please try again.',
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Verification email sent successfully',
+        });
+    } catch (error) {
+        console.error('Resend verification error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to resend verification email',
             error: error.message,
         });
     }

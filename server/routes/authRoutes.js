@@ -4,6 +4,7 @@ import {
   login,
   logout,
   verifyEmail,
+  resendVerificationEmail,
   forgotPassword,
   resetPassword,
   getCurrentUser,
@@ -22,5 +23,7 @@ router.post('/reset-password', resetPassword);
 // Protected routes
 router.post('/logout', authenticate, logout);
 router.get('/me', authenticate, getCurrentUser);
+router.post('/resend-verification', authenticate, resendVerificationEmail);
+
 
 export default router;

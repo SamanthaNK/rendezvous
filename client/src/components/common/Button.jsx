@@ -24,9 +24,9 @@ function Button({
     const variantClasses = {
         primary: `
       bg-teal text-white
-      hover:bg-teal/90 hover:-translate-y-0.5 hover:shadow-md
-      active:translate-y-0 active:shadow-sm
-      disabled:bg-gray-300 disabled:cursor-not-allowed disabled:transform-none
+      hover:bg-teal/90 hover:shadow-md
+      active:scale-95 active:shadow-sm
+      disabled:bg-gray-300 disabled:cursor-not-allowed
     `,
         secondary: `
       bg-transparent text-ink-black border-[1.5px] border-gray-300

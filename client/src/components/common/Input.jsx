@@ -1,10 +1,9 @@
+import { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 
-function Input({
+const Input = forwardRef(({
     label,
     placeholder,
-    value,
-    onChange,
     error,
     disabled,
     type = 'text',
@@ -15,7 +14,8 @@ function Input({
     iconPosition = 'left',
     className = '',
     inputClassName = '',
-}) {
+    ...rest
+}, ref) => {
     const inputId = id || name;
 
     return (
@@ -40,11 +40,10 @@ function Input({
                 )}
 
                 <input
+                    ref={ref}
                     id={inputId}
                     name={name}
                     type={type}
-                    value={value}
-                    onChange={onChange}
                     placeholder={placeholder}
                     disabled={disabled}
                     required={required}
@@ -63,6 +62,7 @@ function Input({
             transition-all duration-200
             ${inputClassName}
           `}
+                    {...rest}
                 />
 
                 {Icon && iconPosition === 'right' && (
@@ -81,13 +81,13 @@ function Input({
             )}
         </div>
     );
-}
+});
+
+Input.displayName = 'Input';
 
 Input.propTypes = {
     label: PropTypes.string,
     placeholder: PropTypes.string,
-    value: PropTypes.string.isRequired,
-    onChange: PropTypes.func.isRequired,
     error: PropTypes.string,
     disabled: PropTypes.bool,
     type: PropTypes.string,
