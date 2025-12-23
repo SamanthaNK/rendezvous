@@ -272,7 +272,14 @@ organizerProfileSchema.statics.updateMetrics = async function (userId) {
 
 // Check if organizer can create events
 organizerProfileSchema.methods.canCreateEvents = function () {
-    return this.accountStatus === 'active' && !this.isCurrentlySuspended;
+    if (this.accountStatus !== 'active') return false;
+    if (this.suspensionInfo?.isSuspended) {
+        if (this.suspensionInfo.suspensionEndDate) {
+            return new Date() > this.suspensionInfo.suspensionEndDate;
+        }
+        return false;
+    }
+    return true;
 };
 
 // Suspend organizer

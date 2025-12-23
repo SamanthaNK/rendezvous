@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
+import eventRoutes from './routes/eventRoutes.js';
+import './models/reviewModel.js';
 
 dotenv.config();
 
@@ -45,10 +47,10 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/events', eventRoutes);
 
 // API Routes - Placeholders
 // import userRoutes from './routes/userRoutes.js';
-// import eventRoutes from './routes/eventRoutes.js';
 // import searchRoutes from './routes/searchRoutes.js';
 // import mapRoutes from './routes/mapRoutes.js';
 // import organizerRoutes from './routes/organizerRoutes.js';
@@ -57,7 +59,6 @@ app.use('/api/auth', authRoutes);
 // import reportRoutes from './routes/reportRoutes.js';
 
 // app.use('/api/users', userRoutes);
-// app.use('/api/events', eventRoutes);
 // app.use('/api/search', searchRoutes);
 // app.use('/api/map', mapRoutes);
 // app.use('/api/organizer', organizerRoutes);

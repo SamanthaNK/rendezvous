@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { Facebook, Github, Instagram, Twitter, X } from 'lucide-react';
 import Container from './Container';
 
 function Footer() {
@@ -25,9 +25,9 @@ function Footer() {
     };
 
     const socialLinks = [
-        { icon: Facebook, label: 'Facebook', url: '#' },
-        { icon: Instagram, label: 'Instagram', url: '#' },
         { icon: Twitter, label: 'Twitter', url: '#' },
+        { icon: Instagram, label: 'Instagram', url: '#' },
+        { icon: Github, label: 'Github', url: 'https://github.com/SamanthaNK' },
     ];
 
     return (
