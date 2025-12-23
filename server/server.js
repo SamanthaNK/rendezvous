@@ -6,11 +6,10 @@ import rateLimit from 'express-rate-limit';
 import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 import './models/reviewModel.js';
 
 dotenv.config();
-
-console.log('MONGODB_URI:', process.env.MONGODB_URI);
 
 connectDB();
 
@@ -50,6 +49,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // API Routes - Placeholders
 // import userRoutes from './routes/userRoutes.js';

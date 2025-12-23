@@ -1,6 +1,7 @@
 import Event from '../models/eventModel.js';
 import User from '../models/userModel.js';
 import OrganizerProfile from '../models/organizerProfileModel.js';
+import { deleteMultipleImages } from '../services/cloudinaryService.js';
 
 // Get all events with filtering and pagination
 export const getAllEvents = async (req, res) => {
@@ -314,6 +315,24 @@ export const deleteEvent = async (req, res) => {
                 success: false,
                 message: 'You can only delete your own events',
             });
+        }
+
+        // Extract public IDs from Cloudinary URLs
+        const publicIds = event.images
+            .filter((url) => url.includes('cloudinary.com'))
+            .map((url) => {
+                const parts = url.split('/');
+                const filename = parts[parts.length - 1];
+                const folder = parts[parts.length - 2];
+                return `rendezvous/${folder}/${filename.split('.')[0]}`;
+            });
+
+        if (publicIds.length > 0) {
+            try {
+                await deleteMultipleImages(publicIds);
+            } catch (imageError) {
+                console.error('Failed to delete images from Cloudinary:', imageError);
+            }
         }
 
         await Event.findByIdAndDelete(id);
