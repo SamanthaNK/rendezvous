@@ -2,55 +2,55 @@ import { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 
 const Input = forwardRef(({
-    label,
-    placeholder,
-    error,
-    disabled,
-    type = 'text',
-    name,
-    id,
-    required = false,
-    icon: Icon,
-    iconPosition = 'left',
-    className = '',
-    inputClassName = '',
-    ...rest
+  label,
+  placeholder,
+  error,
+  disabled,
+  type = 'text',
+  name,
+  id,
+  required = false,
+  icon: Icon,
+  iconPosition = 'left',
+  className = '',
+  inputClassName = '',
+  ...rest
 }, ref) => {
-    const inputId = id || name;
+  const inputId = id || name;
 
-    return (
-        <div className={`w-full ${className}`}>
-            {label && (
-                <label
-                    htmlFor={inputId}
-                    className="block font-body text-sm font-medium text-ink-black mb-2"
-                >
-                    {label}
-                    {required && (
-                        <span className="text-error ml-1" aria-label="required">
+  return (
+    <div className={`w-full ${className}`}>
+      {label && (
+        <label
+          htmlFor={inputId}
+          className="block font-body text-sm font-medium text-ink-black mb-2"
+        >
+          {label}
+          {required && (
+            <span className="text-error ml-1" aria-label="required">
                             *
-                        </span>
-                    )}
-                </label>
-            )}
+            </span>
+          )}
+        </label>
+      )}
 
-            <div className="relative">
-                {Icon && iconPosition === 'left' && (
-                    <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                )}
+      <div className="relative">
+        {Icon && iconPosition === 'left' && (
+          <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        )}
 
-                <input
-                    ref={ref}
-                    id={inputId}
-                    name={name}
-                    type={type}
-                    placeholder={placeholder}
-                    disabled={disabled}
-                    required={required}
-                    aria-required={required}
-                    aria-invalid={error ? 'true' : 'false'}
-                    aria-describedby={error ? `${inputId}-error` : undefined}
-                    className={`
+        <input
+          ref={ref}
+          id={inputId}
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          aria-required={required}
+          aria-invalid={error ? 'true' : 'false'}
+          aria-describedby={error ? `${inputId}-error` : undefined}
+          className={`
             w-full px-4 py-3 font-body text-base
             border-[1.5px] rounded-md
             ${error ? 'border-error' : 'border-gray-200'}
@@ -62,42 +62,42 @@ const Input = forwardRef(({
             transition-all duration-200
             ${inputClassName}
           `}
-                    {...rest}
-                />
+          {...rest}
+        />
 
-                {Icon && iconPosition === 'right' && (
-                    <Icon className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                )}
-            </div>
+        {Icon && iconPosition === 'right' && (
+          <Icon className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        )}
+      </div>
 
-            {error && (
-                <p
-                    id={`${inputId}-error`}
-                    className="mt-2 text-sm text-error font-body"
-                    role="alert"
-                >
-                    {error}
-                </p>
-            )}
-        </div>
-    );
+      {error && (
+        <p
+          id={`${inputId}-error`}
+          className="mt-2 text-sm text-error font-body"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+    </div>
+  );
 });
 
 Input.displayName = 'Input';
 
 Input.propTypes = {
-    label: PropTypes.string,
-    placeholder: PropTypes.string,
-    error: PropTypes.string,
-    disabled: PropTypes.bool,
-    type: PropTypes.string,
-    name: PropTypes.string,
-    id: PropTypes.string,
-    required: PropTypes.bool,
-    icon: PropTypes.elementType,
-    iconPosition: PropTypes.oneOf(['left', 'right']),
-    className: PropTypes.string,
-    inputClassName: PropTypes.string,
+  label: PropTypes.string,
+  placeholder: PropTypes.string,
+  error: PropTypes.string,
+  disabled: PropTypes.bool,
+  type: PropTypes.string,
+  name: PropTypes.string,
+  id: PropTypes.string,
+  required: PropTypes.bool,
+  icon: PropTypes.elementType,
+  iconPosition: PropTypes.oneOf(['left', 'right']),
+  className: PropTypes.string,
+  inputClassName: PropTypes.string,
 };
 
 export default Input;

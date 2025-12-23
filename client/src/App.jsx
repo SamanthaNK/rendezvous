@@ -3,6 +3,8 @@ import { Provider } from 'react-redux';
 import { store } from './store/store';
 import RootLayout from './layouts/RootLayout';
 import HomePage from './pages/HomePage';
+import EventDetailsPage from './pages/EventDetailsPage';
+import CreateEventPage from './pages/CreateEventPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -14,13 +16,27 @@ import RoleRoute from './components/routing/RoleRoute';
 
 window.__REDUX_STORE__ = store;
 
-function App() {
+const App = () => {
   return (
     <Provider store={store}>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<RootLayout />}>
             <Route index element={<HomePage />} />
+
+            <Route
+              path="events/:id"
+              element={<EventDetailsPage />}
+            />
+
+            <Route
+              path="create-event"
+              element={
+                <RoleRoute allowedRoles={['organizer', 'admin']}>
+                  <CreateEventPage />
+                </RoleRoute>
+              }
+            />
 
             <Route
               path="profile"
@@ -102,6 +118,6 @@ function App() {
       </BrowserRouter>
     </Provider>
   );
-}
+};
 
 export default App;
