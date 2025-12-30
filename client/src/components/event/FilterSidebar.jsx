@@ -1,234 +1,276 @@
-import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { X, Calendar, MapPin, Banknote, Tag } from 'lucide-react';
 import Button from '../common/Button';
 
-const FilterSidebar = ({
-  isOpen,
-  onClose,
-  filters,
-  onFiltersChange,
-  categories = [],
-}) => {
-  const [expandedSections, setExpandedSections] = useState({
-    categories: true,
-    date: true,
-    price: true,
-  });
+const CATEGORIES = [
+  'Music & Concerts',
+  'Arts & Culture',
+  'Sports & Fitness',
+  'Food & Drink',
+  'Business & Networking',
+  'Technology',
+  'Health & Wellness',
+  'Community & Charity',
+  'Entertainment',
+  'Education & Workshops',
+  'Family & Kids',
+  'Nightlife',
+];
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+const CITIES = [
+  'Douala',
+  'Yaounde',
+  'Garoua',
+  'Bamenda',
+  'Bafoussam',
+  'Maroua',
+  'Ngaoundéré',
+  'Bertoua',
+  'Limbe',
+  'Buea',
+];
+
+const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onClose }) => {
+  const [localFilters, setLocalFilters] = useState(filters);
+
+  const handleCategoryToggle = (category) => {
+    const newCategories = localFilters.category === category ? '' : category;
+    setLocalFilters({ ...localFilters, category: newCategories });
   };
 
-  const handleCategoryChange = (category, checked) => {
-    const currentCategories = filters.categories || [];
-    const newCategories = checked
-      ? [...currentCategories, category]
-      : currentCategories.filter(c => c !== category);
+  const handleCityChange = (city) => {
+    setLocalFilters({ ...localFilters, city: city === localFilters.city ? '' : city });
+  };
 
-    onFiltersChange({
-      ...filters,
-      categories: newCategories,
+  const handleDateChange = (dateFilter) => {
+    let dateFrom = '';
+    let dateTo = '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    switch (dateFilter) {
+      case 'today':
+        dateFrom = today.toISOString().split('T')[0];
+        dateTo = today.toISOString().split('T')[0];
+        break;
+      case 'weekend':
+        const dayOfWeek = today.getDay();
+        const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+        const saturday = new Date(today);
+        saturday.setDate(today.getDate() + daysUntilSaturday);
+        const sunday = new Date(saturday);
+        sunday.setDate(saturday.getDate() + 1);
+        dateFrom = saturday.toISOString().split('T')[0];
+        dateTo = sunday.toISOString().split('T')[0];
+        break;
+      case 'week':
+        dateFrom = today.toISOString().split('T')[0];
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+        dateTo = nextWeek.toISOString().split('T')[0];
+        break;
+      case 'month':
+        dateFrom = today.toISOString().split('T')[0];
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(today.getMonth() + 1);
+        dateTo = nextMonth.toISOString().split('T')[0];
+        break;
+      default:
+        break;
+    }
+
+    setLocalFilters({
+      ...localFilters,
+      dateFrom,
+      dateTo,
+      dateFilter,
     });
   };
 
-  const handleDateChange = (dateRange) => {
-    onFiltersChange({
-      ...filters,
-      dateRange,
+  const handlePriceChange = (priceFilter) => {
+    let priceMin = '';
+    let priceMax = '';
+    let isFree = '';
+
+    switch (priceFilter) {
+      case 'free':
+        isFree = 'true';
+        break;
+      case 'under2k':
+        priceMax = '2000';
+        break;
+      case 'under5k':
+        priceMax = '5000';
+        break;
+      case '5k+':
+        priceMin = '5000';
+        break;
+      default:
+        break;
+    }
+
+    setLocalFilters({
+      ...localFilters,
+      isFree,
+      priceMin,
+      priceMax,
+      priceFilter,
     });
   };
 
-  const handlePriceChange = (priceRange) => {
-    onFiltersChange({
-      ...filters,
-      priceRange,
-    });
+  const handleApplyFilters = () => {
+    onFilterChange(localFilters);
+    if (isMobile && onClose) {
+      onClose();
+    }
   };
 
-  const clearAllFilters = () => {
-    onFiltersChange({
-      categories: [],
-      dateRange: 'all',
-      priceRange: 'all',
-    });
+  const handleClearAll = () => {
+    const clearedFilters = {
+      category: '',
+      city: '',
+      dateFrom: '',
+      dateTo: '',
+      dateFilter: '',
+      isFree: '',
+      priceMin: '',
+      priceMax: '',
+      priceFilter: '',
+    };
+    setLocalFilters(clearedFilters);
+    onClearFilters();
+    if (isMobile && onClose) {
+      onClose();
+    }
   };
-
-  const hasActiveFilters = (filters.categories?.length > 0) ||
-                            (filters.dateRange && filters.dateRange !== 'all') ||
-                            (filters.priceRange && filters.priceRange !== 'all');
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
+    <div className={`bg-white rounded-xl border border-gray-200 ${isMobile ? 'p-6' : 'p-5'}`}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="font-heading text-xl font-bold text-ink-black">Filters</h2>
+        {isMobile && onClose && (
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
+            aria-label="Close filters"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        )}
+      </div>
 
-      {/* Sidebar */}
-      <div className={`
-                fixed lg:static inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-xl lg:shadow-none transform transition-transform duration-300 ease-in-out
-                ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-            `}>
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 lg:hidden">
-            <h2 className="font-heading text-lg font-bold text-ink-black">Filters</h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <X size={20} />
-            </button>
+      <div className="space-y-6">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="w-4 h-4 text-teal" />
+            <h3 className="font-body text-sm font-semibold text-ink-black">Date</h3>
           </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <div className="flex justify-between items-center">
-                <span className="font-body text-sm text-gray-600">Active filters</span>
-                <button
-                  onClick={clearAllFilters}
-                  className="font-body text-sm text-teal hover:text-teal/80 transition-colors"
-                >
-                                    Clear all
-                </button>
-              </div>
-            )}
-
-            {/* Categories */}
-            <div>
+          <div className="space-y-2">
+            {['today', 'weekend', 'week', 'month'].map((option) => (
               <button
-                onClick={() => toggleSection('categories')}
-                className="flex items-center justify-between w-full text-left mb-3"
+                key={option}
+                onClick={() => handleDateChange(option)}
+                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.dateFilter === option
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
+                  }`}
               >
-                <h3 className="font-heading text-base font-semibold text-ink-black">Categories</h3>
-                {expandedSections.categories ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                {option === 'today' && 'Today'}
+                {option === 'weekend' && 'This Weekend'}
+                {option === 'week' && 'This Week'}
+                {option === 'month' && 'This Month'}
               </button>
-
-              {expandedSections.categories && (
-                <div className="space-y-2">
-                  {categories.map((category) => (
-                    <label key={category} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={filters.categories?.includes(category) || false}
-                        onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                        className="w-4 h-4 text-teal border-gray-300 rounded focus:ring-teal"
-                      />
-                      <span className="font-body text-sm text-gray-700">{category}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Date Range */}
-            <div>
-              <button
-                onClick={() => toggleSection('date')}
-                className="flex items-center justify-between w-full text-left mb-3"
-              >
-                <h3 className="font-heading text-base font-semibold text-ink-black">Date</h3>
-                {expandedSections.date ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-
-              {expandedSections.date && (
-                <div className="space-y-2">
-                  {[
-                    { value: 'all', label: 'All dates' },
-                    { value: 'today', label: 'Today' },
-                    { value: 'tomorrow', label: 'Tomorrow' },
-                    { value: 'weekend', label: 'This weekend' },
-                    { value: 'week', label: 'This week' },
-                    { value: 'month', label: 'This month' },
-                  ].map((option) => (
-                    <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="dateRange"
-                        value={option.value}
-                        checked={filters.dateRange === option.value}
-                        onChange={(e) => handleDateChange(e.target.value)}
-                        className="w-4 h-4 text-teal border-gray-300 focus:ring-teal"
-                      />
-                      <span className="font-body text-sm text-gray-700">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Price Range */}
-            <div>
-              <button
-                onClick={() => toggleSection('price')}
-                className="flex items-center justify-between w-full text-left mb-3"
-              >
-                <h3 className="font-heading text-base font-semibold text-ink-black">Price</h3>
-                {expandedSections.price ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-
-              {expandedSections.price && (
-                <div className="space-y-2">
-                  {[
-                    { value: 'all', label: 'All prices' },
-                    { value: 'free', label: 'Free' },
-                    { value: 'paid', label: 'Paid' },
-                    { value: 'under25', label: 'Under 5000 XAF' },
-                    { value: '25to50', label: '5000 - 10000 XAF' },
-                    { value: 'over50', label: 'Over 10000 XAF' },
-                  ].map((option) => (
-                    <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="priceRange"
-                        value={option.value}
-                        checked={filters.priceRange === option.value}
-                        onChange={(e) => handlePriceChange(e.target.value)}
-                        className="w-4 h-4 text-teal border-gray-300 focus:ring-teal"
-                      />
-                      <span className="font-body text-sm text-gray-700">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+            ))}
           </div>
+        </div>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200 lg:hidden">
-            <Button
-              onClick={onClose}
-              variant="primary"
-              fullWidth
-            >
-                            Apply Filters
-            </Button>
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Banknote className="w-4 h-4 text-teal" />
+            <h3 className="font-body text-sm font-semibold text-ink-black">Price</h3>
+          </div>
+          <div className="space-y-2">
+            {['free', 'under2k', 'under5k', '5k+'].map((option) => (
+              <button
+                key={option}
+                onClick={() => handlePriceChange(option)}
+                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.priceFilter === option
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+              >
+                {option === 'free' && 'Free'}
+                {option === 'under2k' && 'Under 2,000 FCFA'}
+                {option === 'under5k' && 'Under 5,000 FCFA'}
+                {option === '5k+' && '5,000+ FCFA'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <MapPin className="w-4 h-4 text-teal" />
+            <h3 className="font-body text-sm font-semibold text-ink-black">City</h3>
+          </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {CITIES.map((city) => (
+              <button
+                key={city}
+                onClick={() => handleCityChange(city)}
+                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.city === city
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-teal" />
+            <h3 className="font-body text-sm font-semibold text-ink-black">Category</h3>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {CATEGORIES.map((category) => (
+              <button
+                key={category}
+                onClick={() => handleCategoryToggle(category)}
+                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.category === category
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+              >
+                {category}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-    </>
+
+      <div className="space-y-3 mt-6 pt-6 border-t border-gray-200">
+        <Button variant="primary" size="lg" fullWidth onClick={handleApplyFilters}>
+          Apply Filters
+        </Button>
+        <Button variant="ghost" size="lg" fullWidth onClick={handleClearAll}>
+          Clear All
+        </Button>
+      </div>
+    </div>
   );
 };
 
 FilterSidebar.propTypes = {
-  isOpen: PropTypes.bool,
+  filters: PropTypes.object.isRequired,
+  onFilterChange: PropTypes.func.isRequired,
+  onClearFilters: PropTypes.func.isRequired,
+  isMobile: PropTypes.bool,
   onClose: PropTypes.func,
-  filters: PropTypes.shape({
-    categories: PropTypes.arrayOf(PropTypes.string),
-    dateRange: PropTypes.string,
-    priceRange: PropTypes.string,
-  }),
-  onFiltersChange: PropTypes.func.isRequired,
-  categories: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default FilterSidebar;

@@ -23,14 +23,10 @@ const App = () => {
         <Routes>
           <Route path="/" element={<RootLayout />}>
             <Route index element={<HomePage />} />
+            <Route path="events/:id" element={<EventDetailsPage />} />
 
             <Route
-              path="events/:id"
-              element={<EventDetailsPage />}
-            />
-
-            <Route
-              path="create-event"
+              path="events/create"
               element={
                 <RoleRoute allowedRoles={['organizer', 'admin']}>
                   <CreateEventPage />

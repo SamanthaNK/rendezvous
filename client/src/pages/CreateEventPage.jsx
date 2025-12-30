@@ -1,478 +1,310 @@
-﻿import { useState, useCallback } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Save,
-  Upload,
-  Trash2,
-} from 'lucide-react';
-import { selectIsAuthenticated } from '../store/authSlice';
+import { useForm } from 'react-hook-form';
+import { X, AlertCircle } from 'lucide-react';
 import Container from '../layouts/Container';
-import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import Select from '../components/common/Select';
+import Button from '../components/common/Button';
+import ImageUpload from '../components/event/ImageUpload';
 import Modal from '../components/common/Modal';
+import Spinner from '../components/common/Spinner';
+
+const CATEGORIES = [
+  { label: 'Music & Concerts', value: 'Music & Concerts' },
+  { label: 'Arts & Culture', value: 'Arts & Culture' },
+  { label: 'Sports & Fitness', value: 'Sports & Fitness' },
+  { label: 'Food & Drink', value: 'Food & Drink' },
+  { label: 'Business & Networking', value: 'Business & Networking' },
+  { label: 'Technology', value: 'Technology' },
+  { label: 'Health & Wellness', value: 'Health & Wellness' },
+  { label: 'Community & Charity', value: 'Community & Charity' },
+  { label: 'Entertainment', value: 'Entertainment' },
+  { label: 'Education & Workshops', value: 'Education & Workshops' },
+  { label: 'Family & Kids', value: 'Family & Kids' },
+  { label: 'Nightlife', value: 'Nightlife' },
+];
 
 const CreateEventPage = () => {
   const navigate = useNavigate();
-  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const [step, setStep] = useState(1);
+  const [images, setImages] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Multi-step state
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3; // We'll implement more steps later
-
-  // Form data state
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: [],
-    images: [],
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm({
+    mode: 'onBlur',
   });
 
-  // UI state
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
+  const titleValue = watch('title', '');
+  const descriptionValue = watch('description', '');
 
-  // Available categories
-  const categories = [
-    'Music', 'Technology', 'Sports', 'Arts', 'Food & Drink',
-    'Business', 'Education', 'Health', 'Community', 'Entertainment',
-  ];
+  const handleNext = () => {
+    setError(null);
 
-  // Handle form input changes
-  const handleInputChange = useCallback((field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: null,
-      }));
-    }
-  }, [errors]);
-
-  // Handle category selection
-  const handleCategoryToggle = useCallback((category) => {
-    setFormData(prev => ({
-      ...prev,
-      category: prev.category.includes(category)
-        ? prev.category.filter(c => c !== category)
-        : [...prev.category, category],
-    }));
-    if (errors.category) {
-      setErrors(prev => ({
-        ...prev,
-        category: null,
-      }));
-    }
-  }, [errors.category]);
-
-  // Image upload component
-  const ImageUpload = ({ images, onImagesChange, error }) => {
-    const [dragOver, setDragOver] = useState(false);
-
-    const handleFiles = useCallback((files) => {
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-
-      if (imageFiles.length === 0) {
+    if (step === 1) {
+      if (!titleValue || !descriptionValue || selectedCategories.length === 0 || images.length === 0) {
+        setError('Please fill in all required fields before continuing');
         return;
       }
+    }
 
-      // Create preview URLs
-      const newImages = imageFiles.map(file => ({
-        file,
-        preview: URL.createObjectURL(file),
-        id: Date.now() + Math.random(),
-      }));
-
-      onImagesChange([...images, ...newImages]);
-    }, [images, onImagesChange]);
-
-    const handleDragOver = useCallback((e) => {
-      e.preventDefault();
-      setDragOver(true);
-    }, []);
-
-    const handleDragLeave = useCallback((e) => {
-      e.preventDefault();
-      setDragOver(false);
-    }, []);
-
-    const handleDrop = useCallback((e) => {
-      e.preventDefault();
-      setDragOver(false);
-
-      const files = Array.from(e.dataTransfer.files);
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-
-      if (imageFiles.length > 0) {
-        handleFiles(imageFiles);
-      }
-    }, [handleFiles]);
-
-    const handleFileSelect = useCallback((e) => {
-      const files = Array.from(e.target.files);
-      handleFiles(files);
-    }, [handleFiles]);
-
-    const removeImage = useCallback((imageId) => {
-      const updatedImages = images.filter(img => img.id !== imageId);
-      // Revoke object URL to prevent memory leaks
-      const removedImage = images.find(img => img.id === imageId);
-      if (removedImage?.preview) {
-        URL.revokeObjectURL(removedImage.preview);
-      }
-      onImagesChange(updatedImages);
-    }, [images, onImagesChange]);
-
-    return (
-      <div className="space-y-4">
-        <label className="block font-body text-sm font-medium text-ink-black">
-          Event Images
-          <span className="text-error ml-1">*</span>
-        </label>
-
-        {/* Upload area */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`
-            border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-            ${dragOver ? 'border-teal bg-teal/5' : 'border-gray-300 hover:border-teal'}
-            ${error ? 'border-error' : ''}
-          `}
-          onClick={() => document.getElementById('image-upload').click()}
-        >
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="font-body text-gray-600 mb-2">
-            Drag and drop images here, or click to select
-          </p>
-          <p className="font-body text-sm text-gray-500">
-            PNG, JPG, GIF up to 10MB each
-          </p>
-          <input
-            id="image-upload"
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
-
-        {error && (
-          <p className="font-body text-sm text-error">{error}</p>
-        )}
-
-        {/* Image previews */}
-        {images.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {images.map((image) => (
-              <div key={image.id} className="relative group">
-                <img
-                  src={image.preview}
-                  alt="Preview"
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeImage(image.id);
-                  }}
-                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remove image"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    setStep(step + 1);
   };
 
-  // Form validation
-  const validateStep1 = useCallback(() => {
-    const newErrors = {};
+  const handleBack = () => {
+    setError(null);
+    setStep(step - 1);
+  };
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    } else if (formData.title.length > 100) {
-      newErrors.title = 'Title must be 100 characters or less';
-    }
+  const handleCancel = () => {
+    setShowCancelModal(true);
+  };
 
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    } else if (formData.description.length > 2000) {
-      newErrors.description = 'Description must be 2000 characters or less';
-    }
+  const handleDiscardDraft = () => {
+    navigate('/organizer/dashboard');
+  };
 
-    if (formData.category.length === 0) {
-      newErrors.category = 'At least one category is required';
-    }
-
-    if (formData.images.length === 0) {
-      newErrors.images = 'At least one image is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
-
-  // Handle save draft
-  const handleSaveDraft = useCallback(() => {
+  const handleSaveDraft = async () => {
     try {
-      setLoading(true);
-      // Save to localStorage for now (could be API call later)
-      const draftData = {
-        ...formData,
-        step: currentStep,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem('eventDraft', JSON.stringify(draftData));
-      setDraftSaved(true);
-      setTimeout(() => setDraftSaved(false), 3000);
+      setSavingDraft(true);
+      console.log('Saving draft...');
+      setTimeout(() => {
+        navigate('/organizer/dashboard');
+      }, 1000);
     } catch (error) {
-      // Error saving draft - could show user feedback here
+      console.error('Save draft error:', error);
     } finally {
-      setLoading(false);
+      setSavingDraft(false);
     }
-  }, [formData, currentStep]);
+  };
 
-  // Handle next step
-  const handleNext = useCallback(async () => {
-    if (validateStep1()) {
-      // Auto-save draft before proceeding
-      await handleSaveDraft();
-      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
-    }
-  }, [validateStep1, handleSaveDraft, totalSteps]);
-
-  // Handle cancel
-  const handleCancel = useCallback(() => {
-    if (formData.title || formData.description || formData.category.length > 0 || formData.images.length > 0) {
-      setShowCancelModal(true);
-    } else {
-      navigate('/');
-    }
-  }, [formData, navigate]);
-
-  // Handle cancel confirmation
-  const handleCancelConfirm = useCallback((action) => {
-    setShowCancelModal(false);
-    if (action === 'save') {
-      handleSaveDraft().then(() => navigate('/'));
-    } else if (action === 'delete') {
-      // Clear any saved draft
-      localStorage.removeItem('eventDraft');
-      navigate('/');
-    }
-  }, [handleSaveDraft, navigate]);
-
-  // Character counters
-  const titleChars = formData.title.length;
-  const descriptionChars = formData.description.length;
-
-  if (!isAuthenticated) {
-    navigate('/login');
-    return null;
-  }
+  const onSubmit = async (data) => {
+    console.log('Form data:', data);
+    console.log('Categories:', selectedCategories);
+    console.log('Images:', images);
+  };
 
   return (
-    <div className="min-h-screen pt-20">
-      <Container className="py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleCancel}
-              className="flex items-center gap-2 text-gray-600 hover:text-ink-black transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="font-body">Cancel</span>
-            </button>
+    <div className="min-h-screen bg-bright-snow pt-20">
+      <Container className="py-12">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="font-heading text-2xl font-bold text-ink-black">
-                Create New Event
+              <h1 className="font-heading text-4xl font-bold text-ink-black mb-2">
+                Create Event
               </h1>
-              <p className="font-body text-gray-600">
-                Step {currentStep} of {totalSteps}
+              <p className="font-body text-base text-gray-600">
+                Step {step} of 3: Basic Information
               </p>
             </div>
+            <button
+              onClick={handleCancel}
+              className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="Cancel"
+            >
+              <X className="w-6 h-6 text-gray-600" />
+            </button>
           </div>
 
-          {draftSaved && (
-            <div className="flex items-center gap-2 text-green-600">
-              <Save size={16} />
-              <span className="font-body text-sm">Draft saved</span>
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className={`w-2 h-2 rounded-full ${step >= 1 ? 'bg-teal' : 'bg-gray-300'}`} />
+            <div className={`w-2 h-2 rounded-full ${step >= 2 ? 'bg-teal' : 'bg-gray-300'}`} />
+            <div className={`w-2 h-2 rounded-full ${step >= 3 ? 'bg-teal' : 'bg-gray-300'}`} />
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-error/10 border-l-4 border-error rounded-md flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+              <p className="font-body text-sm text-error">{error}</p>
             </div>
           )}
-        </div>
 
-        {/* Progress bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
-          <div
-            className="bg-teal h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-          />
-        </div>
-
-        {/* Step Content */}
-        {currentStep === 1 && (
-          <div className="max-w-2xl space-y-8">
-            <div>
-              <h2 className="font-heading text-xl font-bold text-ink-black mb-6">
-                Basic Information
-              </h2>
-
-              {/* Title */}
-              <div className="mb-6">
-                <Input
-                  label="Event Title"
-                  placeholder="Enter event title"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  error={errors.title}
-                  required
-                  maxLength={100}
-                />
-                <div className="flex justify-end mt-1">
-                  <span className={`font-body text-sm ${titleChars > 100 ? 'text-error' : 'text-gray-500'}`}>
-                    {titleChars}/100
-                  </span>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            {step === 1 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 space-y-6">
+                <div>
+                  <Input
+                    label="Event Title"
+                    placeholder="e.g., Summer Music Festival 2025"
+                    required
+                    error={errors.title?.message}
+                    {...register('title', {
+                      required: 'Event title is required',
+                      maxLength: {
+                        value: 100,
+                        message: 'Title cannot exceed 100 characters',
+                      },
+                    })}
+                  />
+                  <p className="mt-2 font-body text-sm text-gray-500 text-right">
+                    {titleValue.length}/100 characters
+                  </p>
                 </div>
-              </div>
 
-              {/* Description */}
-              <div className="mb-6">
-                <label className="block font-body text-sm font-medium text-ink-black mb-2">
-                  Description
-                  <span className="text-error ml-1">*</span>
-                </label>
-                <textarea
-                  placeholder="Describe your event..."
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  maxLength={2000}
-                  rows={6}
-                  className={`
-                    w-full px-4 py-3 border rounded-md font-body text-base transition-colors
-                    focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal
-                    ${errors.description ? 'border-error focus:border-error focus:ring-error/20' : 'border-gray-300'}
-                  `}
-                />
-                {errors.description && (
-                  <p className="font-body text-sm text-error mt-1">{errors.description}</p>
-                )}
-                <div className="flex justify-end mt-1">
-                  <span className={`font-body text-sm ${descriptionChars > 2000 ? 'text-error' : 'text-gray-500'}`}>
-                    {descriptionChars}/2000
-                  </span>
+                <div>
+                  <label className="block font-body text-sm font-medium text-ink-black mb-2">
+                    Description
+                    <span className="text-error ml-1">*</span>
+                  </label>
+                  <textarea
+                    placeholder="Describe your event in detail..."
+                    rows={8}
+                    className={`
+                      w-full px-4 py-3 font-body text-base
+                      border-[1.5px] rounded-md resize-y
+                      ${errors.description ? 'border-error' : 'border-gray-200'}
+                      focus:outline-none focus:border-teal focus:ring-4 focus:ring-teal/10
+                      placeholder:text-gray-400
+                      transition-all duration-200
+                    `}
+                    {...register('description', {
+                      required: 'Event description is required',
+                      maxLength: {
+                        value: 2000,
+                        message: 'Description cannot exceed 2000 characters',
+                      },
+                    })}
+                  />
+                  {errors.description && (
+                    <p className="mt-2 text-sm text-error font-body">
+                      {errors.description.message}
+                    </p>
+                  )}
+                  <p className="mt-2 font-body text-sm text-gray-500 text-right">
+                    {descriptionValue.length}/2000 characters
+                  </p>
                 </div>
-              </div>
 
-              {/* Category */}
-              <div className="mb-6">
-                <label className="block font-body text-sm font-medium text-ink-black mb-3">
-                  Category
-                  <span className="text-error ml-1">*</span>
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {categories.map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => handleCategoryToggle(category)}
-                      className={`
-                        px-4 py-2 rounded-md font-body text-sm border transition-colors text-left
-                        ${formData.category.includes(category)
-                      ? 'bg-teal text-white border-teal'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-teal'
-                    }
-                      `}
-                    >
-                      {category}
-                    </button>
-                  ))}
+                <div>
+                  <Select
+                    label="Categories"
+                    options={CATEGORIES}
+                    value={selectedCategories}
+                    onChange={setSelectedCategories}
+                    placeholder="Select categories"
+                    multiple
+                    required
+                    error={selectedCategories.length === 0 ? 'Please select at least one category' : ''}
+                  />
+                  <p className="mt-2 font-body text-sm text-gray-500">
+                    Select one or more categories that best describe your event
+                  </p>
                 </div>
-                {errors.category && (
-                  <p className="font-body text-sm text-error mt-2">{errors.category}</p>
-                )}
-              </div>
 
-              {/* Images */}
-              <div className="mb-8">
                 <ImageUpload
-                  images={formData.images}
-                  onImagesChange={(images) => handleInputChange('images', images)}
-                  error={errors.images}
+                  images={images}
+                  onChange={setImages}
+                  error={images.length === 0 ? 'Please upload at least one image' : ''}
                 />
               </div>
+            )}
+
+            {step === 2 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-8">
+                <div className="text-center py-16">
+                  <h2 className="font-heading text-2xl font-bold text-ink-black mb-4">
+                    Step 2: Date & Location
+                  </h2>
+                  <p className="font-body text-base text-gray-600">
+                    Coming in the next implementation phase
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-8">
+                <div className="text-center py-16">
+                  <h2 className="font-heading text-2xl font-bold text-ink-black mb-4">
+                    Step 3: Pricing & Details
+                  </h2>
+                  <p className="font-body text-base text-gray-600">
+                    Coming in the next implementation phase
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mt-8">
+              <div className="flex items-center gap-3">
+                {step > 1 && (
+                  <Button type="button" variant="secondary" size="lg" onClick={handleBack}>
+                    Back
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  onClick={handleSaveDraft}
+                  disabled={savingDraft}
+                >
+                  {savingDraft ? (
+                    <>
+                      <Spinner size="sm" color="teal" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    'Save Draft'
+                  )}
+                </Button>
+              </div>
+
+              {step < 3 ? (
+                <Button type="button" variant="primary" size="lg" onClick={handleNext}>
+                  Next
+                </Button>
+              ) : (
+                <Button type="submit" variant="primary" size="lg">
+                  Publish Event
+                </Button>
+              )}
             </div>
-
-            {/* Action buttons */}
-            <div className="flex justify-between pt-6 border-t border-gray-200">
-              <Button
-                onClick={handleSaveDraft}
-                variant="secondary"
-                disabled={loading}
-                icon={Save}
-                iconPosition="left"
-              >
-                Save Draft
-              </Button>
-
-              <Button
-                onClick={handleNext}
-                variant="primary"
-                disabled={loading}
-                icon={ArrowRight}
-                iconPosition="right"
-              >
-                Next Step
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Cancel confirmation modal */}
-        <Modal
-          isOpen={showCancelModal}
-          onClose={() => setShowCancelModal(false)}
-          title="Unsaved Changes"
-          size="sm"
-        >
-          <div className="space-y-4">
-            <p className="font-body text-gray-700">
-              You have unsaved changes. What would you like to do?
-            </p>
-
-            <div className="flex gap-3">
-              <Button
-                onClick={() => handleCancelConfirm('save')}
-                variant="secondary"
-                className="flex-1"
-              >
-                Save Draft & Exit
-              </Button>
-              <Button
-                onClick={() => handleCancelConfirm('delete')}
-                variant="danger"
-                className="flex-1"
-              >
-                Delete & Exit
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          </form>
+        </div>
       </Container>
+
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title="Save Your Progress?"
+      >
+        <p className="font-body text-base text-gray-700 mb-6">
+          You have unsaved changes. Would you like to save this event as a draft before leaving?
+        </p>
+        <div className="space-y-3">
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onClick={handleSaveDraft}
+            disabled={savingDraft}
+          >
+            {savingDraft ? (
+              <>
+                <Spinner size="sm" color="white" />
+                <span>Saving Draft...</span>
+              </>
+            ) : (
+              'Save as Draft'
+            )}
+          </Button>
+          <Button variant="danger" size="lg" fullWidth onClick={handleDiscardDraft}>
+            Discard Changes
+          </Button>
+          <Button variant="ghost" size="lg" fullWidth onClick={() => setShowCancelModal(false)}>
+            Continue Editing
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

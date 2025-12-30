@@ -1,324 +1,327 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Search, MapPin, Filter, X } from 'lucide-react';
+import { Search, MapPin, SlidersHorizontal, X } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser } from '../store/authSlice';
+import { eventsAPI } from '../services/api';
 import Container from '../layouts/Container';
 import Button from '../components/common/Button';
-import Input from '../components/common/Input';
 import EventGrid from '../components/event/EventGrid';
 import FilterSidebar from '../components/event/FilterSidebar';
-import { eventsAPI } from '../services/api';
+
+const CITIES = [
+  { label: 'Douala', value: 'Douala' },
+  { label: 'Yaoundé', value: 'Yaoundé' },
+  { label: 'Garoua', value: 'Garoua' },
+  { label: 'Bamenda', value: 'Bamenda' },
+  { label: 'Bafoussam', value: 'Bafoussam' },
+  { label: 'Maroua', value: 'Maroua' },
+  { label: 'Ngaoundéré', value: 'Ngaoundéré' },
+  { label: 'Bertoua', value: 'Bertoua' },
+  { label: 'Limbe', value: 'Limbe' },
+  { label: 'Buea', value: 'Buea' },
+];
+
+const QUICK_FILTERS = [
+  { label: 'Tonight', value: 'tonight' },
+  { label: 'Free Events', value: 'free' },
+  { label: 'This Weekend', value: 'weekend' },
+  { label: 'Music', value: 'music' },
+];
 
 const HomePage = () => {
+  const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
+  const cityDropdownRef = useRef(null);
 
-  // State management
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('All Locations');
-  const [activeFilter, setActiveFilter] = useState(null);
+  const [activeQuickFilter, setActiveQuickFilter] = useState('');
+  const [showFilterSidebar, setShowFilterSidebar] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [filters, setFilters] = useState({
-    categories: [],
-    dateRange: 'all',
-    priceRange: 'all',
+    category: '',
+    city: '',
+    dateFrom: '',
+    dateTo: '',
+    dateFilter: '',
+    isFree: '',
+    priceMin: '',
+    priceMax: '',
+    priceFilter: '',
   });
-  const [showFilters, setShowFilters] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 12,
-    total: 0,
-    hasMore: true,
-  });
-  const [bookmarkedEvents, setBookmarkedEvents] = useState([]);
 
-  // Available categories (could be fetched from API)
-  const categories = [
-    'Music', 'Technology', 'Sports', 'Arts', 'Food & Drink',
-    'Business', 'Education', 'Health', 'Community', 'Entertainment',
-  ];
-
-  // Filter pills
-  const filterPills = [
-    { id: 'tonight', label: 'Tonight', icon: '🌙' },
-    { id: 'free', label: 'Free Events', icon: '🎟️' },
-    { id: 'weekend', label: 'This Weekend', icon: '📅' },
-    { id: 'music', label: 'Music', icon: '🎵' },
-  ];
-
-  // Fetch events
-  const fetchEvents = async (loadMore = false) => {
+  const fetchEvents = async (page = 1) => {
     try {
-      setLoading(!loadMore);
-
+      setLoading(true);
       const params = {
-        page: loadMore ? pagination.page + 1 : 1,
-        limit: pagination.limit,
-        search: searchQuery || undefined,
-        location: selectedLocation !== 'All Locations' ? selectedLocation : undefined,
-        categories: filters.categories.length > 0 ? filters.categories.join(',') : undefined,
-        dateRange: filters.dateRange !== 'all' ? filters.dateRange : undefined,
-        priceRange: filters.priceRange !== 'all' ? filters.priceRange : undefined,
-        filter: activeFilter || undefined,
+        page,
+        limit: 12,
       };
 
-      const response = await eventsAPI.getAll(params);
-      const newEvents = response.data.events || [];
+      if (filters.category) params.category = filters.category;
+      if (filters.city) params.city = filters.city;
+      if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+      if (filters.dateTo) params.dateTo = filters.dateTo;
+      if (filters.isFree === 'true') params.isFree = 'true';
+      if (filters.priceMin) params.priceMin = filters.priceMin;
+      if (filters.priceMax) params.priceMax = filters.priceMax;
 
-      if (loadMore) {
-        setEvents(prev => [...prev, ...newEvents]);
-        setPagination(prev => ({
-          ...prev,
-          page: prev.page + 1,
-          hasMore: newEvents.length === prev.limit,
-        }));
-      } else {
-        setEvents(newEvents);
-        setPagination(prev => ({
-          ...prev,
-          page: 1,
-          total: response.data.total || 0,
-          hasMore: newEvents.length === prev.limit,
-        }));
+      const response = await eventsAPI.getAll(params);
+
+      if (response.data.success) {
+        setEvents(response.data.data.events);
+        setTotalPages(response.data.data.pagination.totalPages);
+        setCurrentPage(response.data.data.pagination.currentPage);
       }
     } catch (error) {
-      console.error('Error fetching events:', error);
+      console.error('Fetch events error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search
+  useEffect(() => {
+    fetchEvents();
+  }, [filters]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
+        setShowCityDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleQuickFilter = (filterValue) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let newFilters = { ...filters };
+
+    if (activeQuickFilter === filterValue) {
+      setActiveQuickFilter('');
+      newFilters = {
+        category: '',
+        city: '',
+        dateFrom: '',
+        dateTo: '',
+        dateFilter: '',
+        isFree: '',
+        priceMin: '',
+        priceMax: '',
+        priceFilter: '',
+      };
+    } else {
+      setActiveQuickFilter(filterValue);
+
+      switch (filterValue) {
+        case 'tonight':
+          newFilters.dateFrom = today.toISOString().split('T')[0];
+          newFilters.dateTo = today.toISOString().split('T')[0];
+          newFilters.dateFilter = 'today';
+          break;
+        case 'free':
+          newFilters.isFree = 'true';
+          newFilters.priceFilter = 'free';
+          break;
+        case 'weekend': {
+          const dayOfWeek = today.getDay();
+          const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+          const saturday = new Date(today);
+          saturday.setDate(today.getDate() + daysUntilSaturday);
+          const sunday = new Date(saturday);
+          sunday.setDate(saturday.getDate() + 1);
+          newFilters.dateFrom = saturday.toISOString().split('T')[0];
+          newFilters.dateTo = sunday.toISOString().split('T')[0];
+          newFilters.dateFilter = 'weekend';
+          break;
+        }
+        case 'music':
+          newFilters.category = 'Music & Concerts';
+          break;
+        default:
+          break;
+      }
+    }
+
+    setFilters(newFilters);
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    setActiveQuickFilter('');
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      category: '',
+      city: '',
+      dateFrom: '',
+      dateTo: '',
+      dateFilter: '',
+      isFree: '',
+      priceMin: '',
+      priceMax: '',
+      priceFilter: '',
+    });
+    setActiveQuickFilter('');
+  };
+
+  const handleLoadMore = () => {
+    if (currentPage < totalPages) {
+      fetchEvents(currentPage + 1);
+    }
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchEvents();
-  };
-
-  // Handle filter pill click
-  const handleFilterPillClick = (filterId) => {
-    if (activeFilter === filterId) {
-      setActiveFilter(null);
-    } else {
-      setActiveFilter(filterId);
-      // Reset other filters when using quick filters
-      setFilters({
-        categories: filterId === 'music' ? ['Music'] : [],
-        dateRange: filterId === 'tonight' ? 'today' : filterId === 'weekend' ? 'weekend' : 'all',
-        priceRange: filterId === 'free' ? 'free' : 'all',
-      });
-    }
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  // Handle bookmark toggle
-  const handleBookmarkToggle = async (eventId) => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    try {
-      const isBookmarked = bookmarkedEvents.includes(eventId);
-      if (isBookmarked) {
-        await eventsAPI.unsave(eventId);
-        setBookmarkedEvents(prev => prev.filter(id => id !== eventId));
-      } else {
-        await eventsAPI.save(eventId);
-        setBookmarkedEvents(prev => [...prev, eventId]);
-      }
-    } catch (error) {
-      console.error('Error toggling bookmark:', error);
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
-
-  // Load more events
-  const loadMore = () => {
-    if (!loading && pagination.hasMore) {
-      fetchEvents(true);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    fetchEvents();
-  }, [activeFilter, filters, selectedLocation]);
-
-  // Load user bookmarks if authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      const loadBookmarks = async () => {
-        try {
-          const response = await eventsAPI.getSaved();
-          setBookmarkedEvents(response.data.map(event => event.id));
-        } catch (error) {
-          console.error('Error loading bookmarks:', error);
-        }
-      };
-      loadBookmarks();
-    }
-  }, [isAuthenticated]);
 
   return (
     <div className="pt-20">
-      {/* Hero Section */}
-      <section className="relative bg-dark-amaranth overflow-hidden py-20 md:py-24">
+      <section className="relative bg-dark-amaranth overflow-hidden py-16 md:py-20">
         <div
           className="absolute inset-0 opacity-[0.075] pointer-events-none"
           style={{
-            backgroundImage: 'url(/patterns/bubbles.svg)',
-            backgroundSize: '200px',
+            backgroundImage: 'url(/patterns/toghu-pattern.svg)',
+            backgroundSize: '100px',
           }}
         />
 
         <Container className="relative z-10">
-          <div className="max-w-4xl">
-            <h1 className="font-heading text-4xl md:text-6xl font-bold text-white mb-6">
-                            Discover Events in <span className="text-green-500">Cam</span><span className="text-red-500">er</span><span className="text-yellow-300">oon</span>
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="font-heading text-4xl md:text-5xl font-bold text-white mb-4">
+              Discover Events in <span className="text-lime-cream">Cameroon</span>
             </h1>
-            <p className="font-body text-lg md:text-xl text-white/90 mb-8 leading-relaxed">
-                            Find concerts, festivals, workshops, tech talks, and more happening near you.
-                            All your events in one place.
+            <p className="font-body text-base md:text-lg text-white/90 mb-8">
+              Find concerts, festivals, workshops, and more happening near you
             </p>
 
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="max-w-2xl mb-6">
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="flex-1">
-                  <Input
+            <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
+              <div className="bg-white/95 backdrop-blur-sm rounded-md shadow-lg border border-gray-200 p-2 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <input
                     type="text"
-                    placeholder="Search events, artists, venues..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white focus:text-ink-black"
-                    icon={Search}
+                    placeholder="Search events"
+                    className="w-full pl-12 pr-4 py-2.5 font-body text-base bg-transparent focus:outline-none text-gray-700 placeholder:text-gray-400"
                   />
                 </div>
-                <div className="md:w-48">
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-md text-white placeholder-white/60 focus:bg-white focus:text-ink-black focus:border-white transition-colors"
-                  >
-                    <option value="All Locations">All Locations</option>
-                    <option value="Yaoundé">Yaoundé</option>
-                    <option value="Douala">Douala</option>
-                    <option value="Bamenda">Bamenda</option>
-                    <option value="Bafoussam">Bafoussam</option>
-                    <option value="Limbe">Limbe</option>
-                  </select>
-                </div>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="bg-white text-dark-amaranth hover:bg-white/90 px-6"
-                >
-                                    Search
+                <Button type="submit" variant="primary" size="md" className="rounded-full px-8">
+                  <Search className="w-5 h-5" />
                 </Button>
               </div>
             </form>
-
-            {/* Filter Pills */}
-            <div className="flex flex-wrap gap-2">
-              {filterPills.map((pill) => (
-                <button
-                  key={pill.id}
-                  onClick={() => handleFilterPillClick(pill.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    activeFilter === pill.id
-                      ? 'bg-white text-dark-amaranth'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  <span>{pill.icon}</span>
-                  {pill.label}
-                  {activeFilter === pill.id && (
-                    <X size={14} className="ml-1" />
-                  )}
-                </button>
-              ))}
-            </div>
           </div>
         </Container>
       </section>
 
-      {/* Events Section */}
-      <Container className="py-8 md:py-12">
-        <div className="flex gap-8">
-          {/* Main Content */}
-          <div className="flex-1">
-            {/* Results Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="font-heading text-2xl font-bold text-ink-black mb-1">
-                  {loading ? 'Loading events...' : `${pagination.total} Events Found`}
-                </h2>
-                {searchQuery && (
-                  <p className="font-body text-gray-600">
-                                        Results for "{searchQuery}"
-                  </p>
-                )}
-              </div>
-
-              {/* Mobile Filter Toggle */}
-              <Button
-                onClick={() => setShowFilters(true)}
-                variant="secondary"
-                className="lg:hidden"
-                icon={Filter}
-                iconPosition="left"
+      <section className="py-6 border-b border-gray-200">
+        <Container>
+          <div className="flex items-center gap-3 overflow-x-auto pb-2">
+            {QUICK_FILTERS.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => handleQuickFilter(filter.value)}
+                className={`px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap transition-all ${activeQuickFilter === filter.value
+                  ? 'bg-teal text-white'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
+                  }`}
               >
-                                Filters
-              </Button>
+                {filter.label}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowFilterSidebar(!showFilterSidebar)}
+              className="ml-auto px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap border border-gray-200 text-gray-700 hover:border-teal hover:text-teal transition-all flex items-center gap-2"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              Filters
+            </button>
+          </div>
+        </Container>
+      </section>
+
+      <Container className="py-12">
+        <div className="flex gap-8">
+          {showFilterSidebar && (
+            <div className="hidden lg:block w-80 flex-shrink-0">
+              <div className="sticky top-24">
+                <FilterSidebar
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  onClearFilters={handleClearFilters}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-2xl font-bold text-ink-black">
+                {isAuthenticated
+                  ? `Events for ${currentUser?.name?.split(' ')[0]}`
+                  : 'Upcoming Events'}
+              </h2>
+              {(filters.category ||
+                filters.city ||
+                filters.dateFilter ||
+                filters.priceFilter) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="font-body text-sm text-teal font-semibold hover:underline flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear Filters
+                  </button>
+                )}
             </div>
 
-            {/* Event Grid */}
-            <EventGrid
-              events={events}
-              loading={loading}
-              onBookmarkToggle={handleBookmarkToggle}
-              bookmarkedEvents={bookmarkedEvents}
-            />
+            <EventGrid events={events} loading={loading} />
 
-            {/* Load More */}
-            {pagination.hasMore && !loading && (
-              <div className="text-center mt-8">
-                <Button
-                  onClick={loadMore}
-                  variant="secondary"
-                  size="lg"
-                >
-                                    Load More Events
+            {!loading && events.length > 0 && currentPage < totalPages && (
+              <div className="mt-12 text-center">
+                <Button variant="secondary" size="lg" onClick={handleLoadMore}>
+                  Load More Events
                 </Button>
               </div>
             )}
           </div>
-
-          {/* Desktop Filter Sidebar */}
-          <div className="hidden lg:block w-80">
-            <FilterSidebar
-              filters={filters}
-              onFiltersChange={(newFilters) => {
-                setFilters(newFilters);
-                setPagination(prev => ({ ...prev, page: 1 }));
-              }}
-              categories={categories}
-            />
-          </div>
         </div>
       </Container>
 
-      {/* Mobile Filter Sidebar */}
-      <FilterSidebar
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        filters={filters}
-        onFiltersChange={(newFilters) => {
-          setFilters(newFilters);
-          setPagination(prev => ({ ...prev, page: 1 }));
-          setShowFilters(false);
-        }}
-        categories={categories}
-      />
+      {showFilterSidebar && (
+        <div
+          className="lg:hidden fixed inset-0 bg-ink-black/70 z-50 animate-fade-in"
+          onClick={() => setShowFilterSidebar(false)}
+        >
+          <div
+            className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-bright-snow p-6 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FilterSidebar
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearFilters={handleClearFilters}
+              isMobile
+              onClose={() => setShowFilterSidebar(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
