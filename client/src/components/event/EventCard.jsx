@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { Calendar, MapPin, Heart, Banknote, Bookmark } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import { selectIsAuthenticated } from '../../store/authSlice';
 import { eventsAPI } from '../../services/api';
 
@@ -100,11 +101,18 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
       onClick={handleCardClick}
     >
       <div className="relative h-[180px] overflow-hidden bg-gray-100 flex-shrink-0">
-        <img
-          src={event.images?.[0] || '/placeholder-event.jpg'}
-          alt={event.title}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-        />
+        {event.images?.[0] ? (
+          <img
+            src={event.images[0]}
+            alt={event.title}
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+            <ImageIcon className="w-16 h-16 text-gray-400" />
+          </div>
+        )}
         {isTonight() && (
           <span className="absolute top-3 left-3 px-3 py-1 bg-lime-cream/90 text-ink-black text-xs font-semibold rounded-full backdrop-blur-sm">
             Tonight

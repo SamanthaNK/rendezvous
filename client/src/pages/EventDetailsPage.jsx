@@ -12,6 +12,7 @@ import {
   ExternalLink,
   CheckCircle,
 } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { eventsAPI } from '../services/api';
 import Container from '../layouts/Container';
@@ -160,11 +161,18 @@ const EventDetailsPage = () => {
   return (
     <div className="pt-20">
       <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden bg-gray-100">
-        <img
-          src={event.images?.[0] || '/placeholder-event.jpg'}
-          alt={event.title}
-          className="w-full h-full object-cover"
-        />
+        {event.images?.[0] ? (
+          <img
+            src={event.images[0]}
+            alt={event.title}
+            loading="lazy"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+            <ImageIcon className="w-16 h-16 text-gray-400" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-ink-black/60 to-transparent" />
       </div>
 

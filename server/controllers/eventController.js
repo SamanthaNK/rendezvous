@@ -21,7 +21,7 @@ export const getAllEvents = async (req, res) => {
             search,
             page = 1,
             limit = 20,
-            sort = '-createdAt',
+            sort = '-publishedAt',
         } = req.query;
 
         const filters = { status: 'published', isDraft: false };
@@ -79,11 +79,36 @@ export const getAllEvents = async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const events = await Event.find(filters)
-            .populate('organizer', 'name email')
+            .select('title description categories date time location price isFree images metrics organizer status')
+            .populate('organizer', 'name email isEmailVerified')
             .sort(sort)
             .limit(parseInt(limit))
             .skip(skip)
             .lean();
+
+        const organizerIds = events.map(e => e.organizer?._id).filter(Boolean);
+        const organizerProfiles = await OrganizerProfile.find({
+            user: { $in: organizerIds }
+        })
+            .select('user isVerified verificationBadge metrics.averageRating')
+            .lean();
+
+        const profileMap = {};
+        organizerProfiles.forEach(profile => {
+            profileMap[profile.user.toString()] = profile;
+        });
+
+        // Attach organizer verification info
+        events.forEach(event => {
+            if (event.organizer?._id) {
+                const profile = profileMap[event.organizer._id.toString()];
+                if (profile) {
+                    event.organizer.isVerified = profile.isVerified;
+                    event.organizer.verificationBadge = profile.verificationBadge;
+                    event.organizer.averageRating = profile.metrics?.averageRating || 0;
+                }
+            }
+        });
 
         const total = await Event.countDocuments(filters);
 
@@ -125,7 +150,7 @@ export const getEventById = async (req, res) => {
             });
         }
 
-        await Event.findByIdAndUpdate(id, { $inc: { 'metrics.views': 1 } });
+        Event.findByIdAndUpdate(id, { $inc: { 'metrics.views': 1 } }).exec();
 
         const organizerProfile = await OrganizerProfile.findOne({
             user: event.organizer._id,
@@ -182,6 +207,7 @@ export const getNearbyEvents = async (req, res) => {
                 },
             },
         })
+            .select('title categories date location price isFree images metrics organizer')
             .populate('organizer', 'name email')
             .limit(parseInt(limit))
             .lean();
@@ -219,7 +245,7 @@ export const createEvent = async (req, res) => {
 
         const event = await Event.create(eventData);
 
-        await OrganizerProfile.updateMetrics(req.user._id);
+        OrganizerProfile.updateMetrics(req.user._id).exec();
 
         res.status(201).json({
             success: true,
@@ -243,7 +269,7 @@ export const updateEvent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const event = await Event.findById(id);
+        const event = await Event.findById(id).lean();
 
         if (!event) {
             return res.status(404).json({
@@ -301,7 +327,7 @@ export const deleteEvent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const event = await Event.findById(id);
+        const event = await Event.findById(id).lean();
 
         if (!event) {
             return res.status(404).json({
@@ -317,7 +343,7 @@ export const deleteEvent = async (req, res) => {
             });
         }
 
-        // Extract public IDs from Cloudinary URLs
+        // Extract Cloudinary public IDs
         const publicIds = event.images
             .filter((url) => url.includes('cloudinary.com'))
             .map((url) => {
@@ -337,12 +363,12 @@ export const deleteEvent = async (req, res) => {
 
         await Event.findByIdAndDelete(id);
 
-        await User.updateMany(
+        User.updateMany(
             { $or: [{ savedEvents: id }, { interestedEvents: id }] },
             { $pull: { savedEvents: id, interestedEvents: id } }
-        );
+        ).exec();
 
-        await OrganizerProfile.updateMetrics(event.organizer);
+        OrganizerProfile.updateMetrics(event.organizer).exec();
 
         res.json({
             success: true,
@@ -363,7 +389,7 @@ export const saveEvent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const event = await Event.findById(id);
+        const event = await Event.findById(id).select('_id').lean();
 
         if (!event) {
             return res.status(404).json({
@@ -372,19 +398,19 @@ export const saveEvent = async (req, res) => {
             });
         }
 
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('savedEvents').lean();
 
-        if (user.savedEvents.includes(id)) {
+        if (user.savedEvents.some(eventId => eventId.toString() === id)) {
             return res.status(400).json({
                 success: false,
                 message: 'Event already saved',
             });
         }
 
-        user.savedEvents.push(id);
-        await user.save();
-
-        await Event.findByIdAndUpdate(id, { $inc: { 'metrics.saves': 1 } });
+        await Promise.all([
+            User.findByIdAndUpdate(req.user._id, { $push: { savedEvents: id } }),
+            Event.findByIdAndUpdate(id, { $inc: { 'metrics.saves': 1 } })
+        ]);
 
         res.json({
             success: true,
@@ -405,19 +431,19 @@ export const unsaveEvent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('savedEvents').lean();
 
-        if (!user.savedEvents.includes(id)) {
+        if (!user.savedEvents.some(eventId => eventId.toString() === id)) {
             return res.status(400).json({
                 success: false,
                 message: 'Event not in saved list',
             });
         }
 
-        user.savedEvents = user.savedEvents.filter((eventId) => eventId.toString() !== id);
-        await user.save();
-
-        await Event.findByIdAndUpdate(id, { $inc: { 'metrics.saves': -1 } });
+        await Promise.all([
+            User.findByIdAndUpdate(req.user._id, { $pull: { savedEvents: id } }),
+            Event.findByIdAndUpdate(id, { $inc: { 'metrics.saves': -1 } })
+        ]);
 
         res.json({
             success: true,
@@ -438,7 +464,7 @@ export const markInterested = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const event = await Event.findById(id);
+        const event = await Event.findById(id).select('_id interestedUsers').lean();
 
         if (!event) {
             return res.status(404).json({
@@ -447,21 +473,22 @@ export const markInterested = async (req, res) => {
             });
         }
 
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('interestedEvents').lean();
 
-        if (user.interestedEvents.includes(id)) {
+        if (user.interestedEvents.some(eventId => eventId.toString() === id)) {
             return res.status(400).json({
                 success: false,
                 message: 'Already marked as interested',
             });
         }
 
-        user.interestedEvents.push(id);
-        await user.save();
-
-        event.interestedUsers.push(req.user._id);
-        event.metrics.interested = event.interestedUsers.length;
-        await event.save();
+        await Promise.all([
+            User.findByIdAndUpdate(req.user._id, { $push: { interestedEvents: id } }),
+            Event.findByIdAndUpdate(id, {
+                $push: { interestedUsers: req.user._id },
+                $inc: { 'metrics.interested': 1 }
+            })
+        ]);
 
         res.json({
             success: true,
@@ -482,28 +509,22 @@ export const unmarkInterested = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('interestedEvents').lean();
 
-        if (!user.interestedEvents.includes(id)) {
+        if (!user.interestedEvents.some(eventId => eventId.toString() === id)) {
             return res.status(400).json({
                 success: false,
                 message: 'Event not in interested list',
             });
         }
 
-        user.interestedEvents = user.interestedEvents.filter(
-            (eventId) => eventId.toString() !== id
-        );
-        await user.save();
-
-        const event = await Event.findById(id);
-        if (event) {
-            event.interestedUsers = event.interestedUsers.filter(
-                (userId) => userId.toString() !== req.user._id.toString()
-            );
-            event.metrics.interested = event.interestedUsers.length;
-            await event.save();
-        }
+        await Promise.all([
+            User.findByIdAndUpdate(req.user._id, { $pull: { interestedEvents: id } }),
+            Event.findByIdAndUpdate(id, {
+                $pull: { interestedUsers: req.user._id },
+                $inc: { 'metrics.interested': -1 }
+            })
+        ]);
 
         res.json({
             success: true,
@@ -523,16 +544,18 @@ export const unmarkInterested = async (req, res) => {
 export const getSavedEvents = async (req, res) => {
     try {
         const { page = 1, limit = 20 } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const user = await User.findById(req.user._id)
-            .populate({
-                path: 'savedEvents',
-                populate: { path: 'organizer', select: 'name email' },
-                options: {
-                    limit: parseInt(limit),
-                    skip: (parseInt(page) - 1) * parseInt(limit),
-                },
-            })
+        const user = await User.findById(req.user._id).select('savedEvents').lean();
+
+        const events = await Event.find({
+            _id: { $in: user.savedEvents }
+        })
+            .select('title categories date location price isFree images metrics organizer')
+            .populate('organizer', 'name email')
+            .sort('-createdAt')
+            .limit(parseInt(limit))
+            .skip(skip)
             .lean();
 
         const total = user.savedEvents.length;
@@ -540,7 +563,7 @@ export const getSavedEvents = async (req, res) => {
         res.json({
             success: true,
             data: {
-                events: user.savedEvents,
+                events,
                 pagination: {
                     currentPage: parseInt(page),
                     totalPages: Math.ceil(total / parseInt(limit)),
@@ -562,16 +585,18 @@ export const getSavedEvents = async (req, res) => {
 export const getInterestedEvents = async (req, res) => {
     try {
         const { page = 1, limit = 20 } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const user = await User.findById(req.user._id)
-            .populate({
-                path: 'interestedEvents',
-                populate: { path: 'organizer', select: 'name email' },
-                options: {
-                    limit: parseInt(limit),
-                    skip: (parseInt(page) - 1) * parseInt(limit),
-                },
-            })
+        const user = await User.findById(req.user._id).select('interestedEvents').lean();
+
+        const events = await Event.find({
+            _id: { $in: user.interestedEvents }
+        })
+            .select('title categories date location price isFree images metrics organizer')
+            .populate('organizer', 'name email')
+            .sort('-createdAt')
+            .limit(parseInt(limit))
+            .skip(skip)
             .lean();
 
         const total = user.interestedEvents.length;
@@ -579,7 +604,7 @@ export const getInterestedEvents = async (req, res) => {
         res.json({
             success: true,
             data: {
-                events: user.interestedEvents,
+                events,
                 pagination: {
                     currentPage: parseInt(page),
                     totalPages: Math.ceil(total / parseInt(limit)),
@@ -611,6 +636,7 @@ export const getMyEvents = async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const events = await Event.find(filters)
+            .select('title categories date status isDraft metrics images')
             .sort('-createdAt')
             .limit(parseInt(limit))
             .skip(skip)
