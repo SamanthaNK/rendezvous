@@ -39,6 +39,8 @@ Project currently under development.
 
 ### External Services
 - Hugging Face API (NLP/AI)
+   - `facebook/bart-large-mnli` for zero-shot classification (category extraction)
+   - `sentence-transformers/all-MiniLM-L6-v2` for semantic embeddings (recommendations)
 - Mapbox API (maps and geocoding)
 - Cloudinary (Image CDN)
 - MongoDB Atlas (Database)

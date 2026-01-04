@@ -7,6 +7,7 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
 import './models/reviewModel.js';
 
 dotenv.config();
@@ -50,10 +51,10 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/search', searchRoutes);
 
 // API Routes - Placeholders
 // import userRoutes from './routes/userRoutes.js';
-// import searchRoutes from './routes/searchRoutes.js';
 // import mapRoutes from './routes/mapRoutes.js';
 // import organizerRoutes from './routes/organizerRoutes.js';
 // import adminRoutes from './routes/adminRoutes.js';
@@ -61,7 +62,6 @@ app.use('/api/upload', uploadRoutes);
 // import reportRoutes from './routes/reportRoutes.js';
 
 // app.use('/api/users', userRoutes);
-// app.use('/api/search', searchRoutes);
 // app.use('/api/map', mapRoutes);
 // app.use('/api/organizer', organizerRoutes);
 // app.use('/api/admin', adminRoutes);
