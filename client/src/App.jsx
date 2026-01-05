@@ -5,6 +5,7 @@ import RootLayout from './layouts/RootLayout';
 import HomePage from './pages/HomePage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import CreateEventPage from './pages/CreateEventPage';
+import SearchResultsPage from './pages/SearchResultsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -24,6 +25,7 @@ const App = () => {
           <Route path="/" element={<RootLayout />}>
             <Route index element={<HomePage />} />
             <Route path="events/:id" element={<EventDetailsPage />} />
+            <Route path="search" element={<SearchResultsPage />} />
 
             <Route
               path="events/create"

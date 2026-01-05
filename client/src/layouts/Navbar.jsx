@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Menu, X, User, Heart, Calendar, LogOut } from 'lucide-react';
+import { Search, Menu, X, User, Heart, Calendar, LogOut, Clock } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../store/authSlice';
+import { selectSearchHistory, addToHistory } from '../store/searchSlice';
 import { authAPI } from '../services/api';
 import Container from './Container';
 import Button from '../components/common/Button';
@@ -12,10 +13,14 @@ const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchValue, setSearchValue] = useState('');
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const currentUser = useSelector(selectCurrentUser);
+    const searchHistory = useSelector(selectSearchHistory);
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const searchRef = useRef(null);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -31,11 +36,14 @@ const Navbar = () => {
             if (isUserMenuOpen && !event.target.closest('.user-menu-container')) {
                 setIsUserMenuOpen(false);
             }
+            if (isSearchOpen && searchRef.current && !searchRef.current.contains(event.target)) {
+                setIsSearchOpen(false);
+            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isUserMenuOpen]);
+    }, [isUserMenuOpen, isSearchOpen]);
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -55,6 +63,21 @@ const Navbar = () => {
             navigate('/');
             setIsUserMenuOpen(false);
         }
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        if (searchValue.trim()) {
+            dispatch(addToHistory(searchValue));
+            navigate(`/search?q=${encodeURIComponent(searchValue)}`);
+            setSearchValue('');
+            setIsSearchOpen(false);
+        }
+    };
+
+    const handleHistoryClick = (query) => {
+        navigate(`/search?q=${encodeURIComponent(query)}`);
+        setIsSearchOpen(false);
     };
 
     return (
@@ -99,13 +122,54 @@ const Navbar = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <IconButton
-                            icon={Search}
-                            onClick={() => navigate('/search')}
-                            ariaLabel="Search events"
-                            variant="ghost"
-                            className="hidden md:flex"
-                        />
+                        <div className="relative hidden md:block" ref={searchRef}>
+                            <IconButton
+                                icon={Search}
+                                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                                ariaLabel="Search events"
+                                variant="ghost"
+                            />
+
+                            {isSearchOpen && (
+                                <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl border border-gray-200 shadow-dropdown p-4 animate-dropdown-fade">
+                                    <form onSubmit={handleSearch} className="mb-3">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                value={searchValue}
+                                                onChange={(e) => setSearchValue(e.target.value)}
+                                                placeholder="Search events..."
+                                                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-teal"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </form>
+
+                                    {isAuthenticated && searchHistory.length > 0 && (
+                                        <div className="border-t border-gray-100 pt-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Clock className="w-4 h-4 text-gray-400" />
+                                                <p className="font-body text-xs font-semibold text-gray-500 uppercase">
+                                                    Recent Searches
+                                                </p>
+                                            </div>
+                                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                                                {searchHistory.slice(0, 5).map((query, index) => (
+                                                    <button
+                                                        key={index}
+                                                        onClick={() => handleHistoryClick(query)}
+                                                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                                                    >
+                                                        {query}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         {isAuthenticated ? (
                             <div className="relative user-menu-container">

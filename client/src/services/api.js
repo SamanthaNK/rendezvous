@@ -72,6 +72,12 @@ export const eventsAPI = {
     getMyEvents: (params) => api.get('/events/organizer/my-events', { params }),
 };
 
+// Search API
+export const searchAPI = {
+    search: (query, params) => api.get('/search', { params: { q: query, ...params } }),
+    getSuggestions: () => api.get('/search/suggestions'),
+};
+
 // Upload API
 export const uploadAPI = {
     uploadImages: (formData) =>

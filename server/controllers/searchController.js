@@ -1,6 +1,13 @@
 import Event from '../models/eventModel.js';
 import { parseQuery } from '../services/aiService.js';
 
+// Normalize text to remove accents for better matching
+const normalizeText = (text) => {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+};
+
 // Natural language search with AI parsing
 export const naturalLanguageSearch = async (req, res) => {
     try {
@@ -29,7 +36,11 @@ export const naturalLanguageSearch = async (req, res) => {
         }
 
         if (parsedParams.location) {
-            filters['location.city'] = new RegExp(parsedParams.location, 'i');
+            const normalizedLocation = normalizeText(parsedParams.location);
+            filters['location.city'] = {
+                $regex: normalizedLocation,
+                $options: 'i'
+            };
         }
 
         if (parsedParams.budget.isFree) {
