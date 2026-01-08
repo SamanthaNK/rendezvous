@@ -1,6 +1,21 @@
-import { HfInference } from '@huggingface/inference';
-
-const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+// Lazily import the optional Hugging Face client. This lets the server start
+// even if the package isn't installed or the API key isn't provided.
+let hf = null;
+(async () => {
+    if (!process.env.HUGGINGFACE_API_KEY) {
+        console.log('[AI] HUGGINGFACE_API_KEY not set; skipping Hugging Face init');
+        return;
+    }
+    try {
+        const mod = await import('@huggingface/inference');
+        const { HfInference } = mod;
+        hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+        console.log('[AI] Hugging Face client initialized');
+    } catch (err) {
+        console.warn('[AI] Optional @huggingface/inference not available:', err.message);
+        hf = null;
+    }
+})();
 
 const AI_TIMEOUT = 10000;
 
@@ -281,6 +296,10 @@ export const parseQuery = async (query) => {
 // Generate event embeddings for recommendations (ONLY AI feature we use)
 export const generateEventEmbedding = async (eventText) => {
     try {
+        if (!hf) {
+            console.warn('[AI] Hugging Face client not initialized; skipping embedding generation');
+            return null;
+        }
         console.log('[AI] Generating embedding for:', eventText.substring(0, 50) + '...');
 
         const result = await withTimeout(

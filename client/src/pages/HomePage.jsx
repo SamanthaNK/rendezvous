@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Search, MapPin, SlidersHorizontal, X } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser } from '../store/authSlice';
 import { eventsAPI } from '../services/api';
+import { setView, selectView } from '../store/viewSlice';
 import Container from '../layouts/Container';
 import Button from '../components/common/Button';
 import EventGrid from '../components/event/EventGrid';
 import FilterSidebar from '../components/event/FilterSidebar';
+import MapViewPage from './MapViewPage';
 
 const CITIES = [
   { label: 'Douala', value: 'Douala' },
@@ -31,8 +33,10 @@ const QUICK_FILTERS = [
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
+  const currentView = useSelector(selectView);
   const cityDropdownRef = useRef(null);
 
   const [events, setEvents] = useState([]);
@@ -188,8 +192,25 @@ const HomePage = () => {
     }
   };
 
+  const handleToggleView = () => {
+    dispatch(setView(currentView === 'list' ? 'map' : 'list'));
+  };
+
   return (
     <div className="pt-20">
+      {/* Toggle Button */}
+      <Container className="mb-4 flex justify-end">
+        <Button
+          variant="secondary"
+          size="md"
+          icon={MapPin}
+          iconPosition="left"
+          onClick={handleToggleView}
+        >
+          {currentView === 'list' ? 'Map View' : 'List View'}
+        </Button>
+      </Container>
+
       <section className="relative bg-dark-amaranth overflow-hidden py-16 md:py-20">
         <div
           className="absolute inset-0 opacity-[0.075] pointer-events-none"
@@ -255,53 +276,57 @@ const HomePage = () => {
         </Container>
       </section>
 
-      <Container className="py-12">
-        <div className="flex gap-8">
-          {showFilterSidebar && (
-            <div className="hidden lg:block w-80 flex-shrink-0">
-              <div className="sticky top-24">
-                <FilterSidebar
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  onClearFilters={handleClearFilters}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-2xl font-bold text-ink-black">
-                {isAuthenticated
-                  ? `Events for ${currentUser?.name?.split(' ')[0]}`
-                  : 'Upcoming Events'}
-              </h2>
-              {(filters.category ||
-                filters.city ||
-                filters.dateFilter ||
-                filters.priceFilter) && (
-                  <button
-                    onClick={handleClearFilters}
-                    className="font-body text-sm text-teal font-semibold hover:underline flex items-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Clear Filters
-                  </button>
-                )}
-            </div>
-
-            <EventGrid events={events} loading={loading} />
-
-            {!loading && events.length > 0 && currentPage < totalPages && (
-              <div className="mt-12 text-center">
-                <Button variant="secondary" size="lg" onClick={handleLoadMore}>
-                  Load More Events
-                </Button>
+      {currentView === 'list' ? (
+        <Container className="py-12">
+          <div className="flex gap-8">
+            {showFilterSidebar && (
+              <div className="hidden lg:block w-80 flex-shrink-0">
+                <div className="sticky top-24">
+                  <FilterSidebar
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={handleClearFilters}
+                  />
+                </div>
               </div>
             )}
+
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-heading text-2xl font-bold text-ink-black">
+                  {isAuthenticated
+                    ? `Events for ${currentUser?.name?.split(' ')[0]}`
+                    : 'Upcoming Events'}
+                </h2>
+                {(filters.category ||
+                  filters.city ||
+                  filters.dateFilter ||
+                  filters.priceFilter) && (
+                    <button
+                      onClick={handleClearFilters}
+                      className="font-body text-sm text-teal font-semibold hover:underline flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Clear Filters
+                    </button>
+                  )}
+              </div>
+
+              <EventGrid events={events} loading={loading} />
+
+              {!loading && events.length > 0 && currentPage < totalPages && (
+                <div className="mt-12 text-center">
+                  <Button variant="secondary" size="lg" onClick={handleLoadMore}>
+                    Load More Events
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </Container>
+        </Container>
+      ) : (
+        <MapViewPage filters={filters} events={events} />
+      )}
 
       {showFilterSidebar && (
         <div

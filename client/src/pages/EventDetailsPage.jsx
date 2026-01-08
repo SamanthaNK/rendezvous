@@ -27,6 +27,7 @@ const EventDetailsPage = () => {
 
   const [event, setEvent] = useState(null);
   const [similarEvents, setSimilarEvents] = useState([]);
+  const [similarTotal, setSimilarTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [isInterested, setIsInterested] = useState(false);
@@ -50,7 +51,7 @@ const EventDetailsPage = () => {
         setIsInterested(eventData.isInterested || false);
         setInterestedCount(eventData.metrics?.interested || 0);
 
-        fetchSimilarEvents(eventData.categories?.[0]);
+        fetchSimilarEvents();
       }
     } catch (error) {
       console.error('Fetch event details error:', error);
@@ -60,16 +61,13 @@ const EventDetailsPage = () => {
     }
   };
 
-  const fetchSimilarEvents = async (category) => {
+  const fetchSimilarEvents = async () => {
     try {
-      const response = await eventsAPI.getAll({
-        category,
-        limit: 3,
-      });
-
+      const response = await eventsAPI.getSimilar(id, { limit: 6 });
       if (response.data.success) {
-        const filtered = response.data.data.events.filter((e) => e._id !== id);
-        setSimilarEvents(filtered.slice(0, 3));
+        const events = response.data.data.events.filter((e) => e._id !== id);
+        setSimilarEvents(events.slice(0, 5));
+        setSimilarTotal(response.data.data.total || events.length);
       }
     } catch (error) {
       console.error('Fetch similar events error:', error);
@@ -165,7 +163,6 @@ const EventDetailsPage = () => {
           <img
             src={event.images[0]}
             alt={event.title}
-            loading="lazy"
             className="w-full h-full object-cover"
           />
         ) : (
@@ -175,7 +172,6 @@ const EventDetailsPage = () => {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-ink-black/60 to-transparent" />
       </div>
-
       <Container className="py-12">
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 lg:w-2/3">
@@ -188,7 +184,6 @@ const EventDetailsPage = () => {
                   {event.title}
                 </h1>
               </div>
-
               <div className="flex items-center gap-4 pb-6 border-b border-gray-200">
                 <Link
                   to={`/organizers/${event.organizer?._id}`}
@@ -212,7 +207,6 @@ const EventDetailsPage = () => {
                   </div>
                 </Link>
               </div>
-
               <div>
                 <h2 className="font-heading text-2xl font-bold text-ink-black mb-4">
                   About This Event
@@ -221,7 +215,6 @@ const EventDetailsPage = () => {
                   {event.description}
                 </p>
               </div>
-
               {event.socialLinks && Object.keys(event.socialLinks).some((key) => event.socialLinks[key]) && (
                 <div className="pt-6 border-t border-gray-200">
                   <h3 className="font-heading text-xl font-bold text-ink-black mb-4">
@@ -266,7 +259,6 @@ const EventDetailsPage = () => {
               )}
             </div>
           </div>
-
           <div className="lg:w-1/3">
             <div className="sticky top-24 space-y-6">
               <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -281,7 +273,6 @@ const EventDetailsPage = () => {
                       <p className="font-body text-sm text-gray-600">{event.time}</p>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <MapPin className="w-5 h-5 text-teal flex-shrink-0 mt-0.5" />
                     <div>
@@ -294,7 +285,6 @@ const EventDetailsPage = () => {
                       </p>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <Banknote className="w-5 h-5 text-teal flex-shrink-0 mt-0.5" />
                     <div>
@@ -304,7 +294,6 @@ const EventDetailsPage = () => {
                       </p>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <Heart className="w-5 h-5 text-lime-cream fill-lime-cream flex-shrink-0 mt-0.5" />
                     <div>
@@ -315,7 +304,6 @@ const EventDetailsPage = () => {
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-3">
                   <Button
                     variant="primary"
@@ -351,7 +339,6 @@ const EventDetailsPage = () => {
                   </Button>
                 </div>
               </div>
-
               <div className="bg-gray-100 rounded-xl overflow-hidden h-64 flex items-center justify-center">
                 <div className="text-center p-6">
                   <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-3" />
@@ -363,16 +350,29 @@ const EventDetailsPage = () => {
             </div>
           </div>
         </div>
-
         {similarEvents.length > 0 && (
           <div className="mt-16 pt-16 border-t border-gray-200">
-            <h2 className="font-heading text-3xl font-bold text-ink-black mb-8">
-              Similar Events
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {similarEvents.map((similarEvent) => (
-                <EventCard key={similarEvent._id} event={similarEvent} />
-              ))}
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="font-heading text-3xl font-bold text-ink-black">
+                Similar Events
+              </h2>
+              {similarTotal > 5 && (
+                <Link
+                  to={`/events/${id}/similar`}
+                  className="font-body text-teal font-semibold hover:underline text-base"
+                >
+                  View All
+                </Link>
+              )}
+            </div>
+            <div className="overflow-x-auto pb-2">
+              <div className="flex gap-6 min-w-[600px]">
+                {similarEvents.slice(0, 5).map((similarEvent) => (
+                  <div key={similarEvent._id} className="w-72 flex-shrink-0">
+                    <EventCard event={similarEvent} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
