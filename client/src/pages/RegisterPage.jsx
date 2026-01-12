@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Lock } from 'lucide-react';
+import { User, Mail, Lock, Briefcase, Calendar } from 'lucide-react';
 import { setCredentials, setLoading, setError, selectAuthLoading, selectAuthError } from '../store/authSlice';
 import { authAPI } from '../services/api';
 import AuthLayout from '../layouts/AuthLayout';
@@ -19,6 +19,7 @@ const RegisterPage = () => {
     const authError = useSelector(selectAuthError);
 
     const [step, setStep] = useState(1);
+    const [accountType, setAccountType] = useState('user');
     const [selectedInterests, setSelectedInterests] = useState([]);
     const [selectedCity, setSelectedCity] = useState('');
     const [neighborhood, setNeighborhood] = useState('');
@@ -47,6 +48,8 @@ const RegisterPage = () => {
     };
 
     const handleNext = () => {
+        dispatch(setError(null));
+
         if (step === 2 && selectedInterests.length < 1) {
             dispatch(setError('Please select at least 1 interest'));
             return;
@@ -55,7 +58,7 @@ const RegisterPage = () => {
             dispatch(setError('Please select your city'));
             return;
         }
-        dispatch(setError(null));
+
         setStep(step + 1);
     };
 
@@ -78,6 +81,7 @@ const RegisterPage = () => {
                     city: selectedCity,
                     neighborhood: neighborhood || '',
                 },
+                role: accountType,
             };
 
             const response = await authAPI.register(userData);
@@ -116,6 +120,51 @@ const RegisterPage = () => {
                             </p>
                         </div>
 
+                        <div className="mb-6">
+                            <label className="block font-body text-sm font-medium text-ink-black mb-3">
+                                I want to:
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setAccountType('user')}
+                                    className={`p-4 rounded-lg border-2 transition-all ${accountType === 'user'
+                                            ? 'border-teal bg-teal/5'
+                                            : 'border-gray-200 hover:border-teal'
+                                        }`}
+                                >
+                                    <Calendar className={`w-6 h-6 mx-auto mb-2 ${accountType === 'user' ? 'text-teal' : 'text-gray-400'
+                                        }`} />
+                                    <p className={`font-body text-sm font-semibold ${accountType === 'user' ? 'text-teal' : 'text-gray-700'
+                                        }`}>
+                                        Discover Events
+                                    </p>
+                                    <p className="font-body text-xs text-gray-500 mt-1">
+                                        Find and attend events
+                                    </p>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setAccountType('organizer')}
+                                    className={`p-4 rounded-lg border-2 transition-all ${accountType === 'organizer'
+                                            ? 'border-teal bg-teal/5'
+                                            : 'border-gray-200 hover:border-teal'
+                                        }`}
+                                >
+                                    <Briefcase className={`w-6 h-6 mx-auto mb-2 ${accountType === 'organizer' ? 'text-teal' : 'text-gray-400'
+                                        }`} />
+                                    <p className={`font-body text-sm font-semibold ${accountType === 'organizer' ? 'text-teal' : 'text-gray-700'
+                                        }`}>
+                                        Organize Events
+                                    </p>
+                                    <p className="font-body text-xs text-gray-500 mt-1">
+                                        Create and manage events
+                                    </p>
+                                </button>
+                            </div>
+                        </div>
+
                         {authError && (
                             <div className="mb-6 p-4 bg-error/10 border-l-4 border-error rounded-md">
                                 <p className="font-body text-sm text-error">{authError}</p>
@@ -128,7 +177,7 @@ const RegisterPage = () => {
                             <Input
                                 label="Full Name"
                                 type="text"
-                                placeholder="Kim Army"
+                                placeholder={accountType === 'organizer' ? 'Organization or Your Name' : 'Kim Army'}
                                 icon={User}
                                 iconPosition="left"
                                 required

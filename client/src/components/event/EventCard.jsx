@@ -6,6 +6,7 @@ import { Calendar, MapPin, Heart, Banknote, Bookmark } from 'lucide-react';
 import { Image as ImageIcon } from 'lucide-react';
 import { selectIsAuthenticated } from '../../store/authSlice';
 import { eventsAPI } from '../../services/api';
+import { formatDate, isToday } from '../../utils/dateHelpers';
 
 const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
   const navigate = useNavigate();
@@ -15,19 +16,9 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
   const [interestedCount, setInterestedCount] = useState(event.metrics?.interested || 0);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const isTonight = () => {
-    const eventDate = new Date(event.date);
-    const today = new Date();
-    return eventDate.toDateString() === today.toDateString();
-  };
+  const isTonightEvent = isToday(event.date);
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+ const formattedDate = formatDate(event.date, 'short');
 
   const handleCardClick = () => {
     navigate(`/events/${event._id}`);
@@ -113,7 +104,7 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
             <ImageIcon className="w-16 h-16 text-gray-400" />
           </div>
         )}
-        {isTonight() && (
+        {isTonightEvent && (
           <span className="absolute top-3 left-3 px-3 py-1 bg-lime-cream/90 text-ink-black text-xs font-semibold rounded-full backdrop-blur-sm">
             Tonight
           </span>
@@ -144,7 +135,7 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-teal flex-shrink-0" />
             <span className="font-body text-sm text-gray-600 truncate">
-              {formatDate(event.date)}
+              {formattedDate}
             </span>
           </div>
           <div className="flex items-center gap-2">

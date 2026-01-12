@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import CreateEventPage from './pages/CreateEventPage';
 import SearchResultsPage from './pages/SearchResultsPage';
+import SavedEventsPage from './pages/SavedEventsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -14,6 +15,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import RoleRoute from './components/routing/RoleRoute';
+import OrganizerDashboard from './pages/OrganizerDashboard';
 
 window.__REDUX_STORE__ = store;
 
@@ -49,7 +51,7 @@ const App = () => {
               path="saved"
               element={
                 <ProtectedRoute>
-                  <div className="min-h-screen pt-20">Saved Events (Coming Soon)</div>
+                  <SavedEventsPage />
                 </ProtectedRoute>
               }
             />
@@ -67,7 +69,7 @@ const App = () => {
               path="organizer/dashboard"
               element={
                 <RoleRoute allowedRoles={['organizer', 'admin']}>
-                  <div className="min-h-screen pt-20">Organizer Dashboard (Coming Soon)</div>
+                  <OrganizerDashboard />
                 </RoleRoute>
               }
             />

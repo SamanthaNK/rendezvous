@@ -192,25 +192,8 @@ const HomePage = () => {
     }
   };
 
-  const handleToggleView = () => {
-    dispatch(setView(currentView === 'list' ? 'map' : 'list'));
-  };
-
   return (
     <div className="pt-20">
-      {/* Toggle Button */}
-      <Container className="mb-4 flex justify-end">
-        <Button
-          variant="secondary"
-          size="md"
-          icon={MapPin}
-          iconPosition="left"
-          onClick={handleToggleView}
-        >
-          {currentView === 'list' ? 'Map View' : 'List View'}
-        </Button>
-      </Container>
-
       <section className="relative bg-dark-amaranth overflow-hidden py-16 md:py-20">
         <div
           className="absolute inset-0 opacity-[0.075] pointer-events-none"

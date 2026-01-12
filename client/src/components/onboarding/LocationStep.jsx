@@ -6,16 +6,16 @@ const CAMEROON_CITIES = [
     { name: 'Douala', region: 'Littoral' },
     { name: 'Yaoundé', region: 'Centre' },
     { name: 'Garoua', region: 'North' },
-  { name: 'Bamenda', region: 'North-West' },
+    { name: 'Bamenda', region: 'North-West' },
     { name: 'Bafoussam', region: 'West' },
-  { name: 'Maroua', region: 'Far-North' },
-  { name: 'Ngaoundéré', region: 'Adamawa' },
-  { name: 'Bertoua', region: 'East' },
-  { name: 'Limbe', region: 'South-West' },
-  { name: 'Buea', region: 'South-West' },
-{ name: 'Kumba', region: 'South-West' },
-{ name: 'Ebolowa', region: 'South' },
-{ name: 'Kribi', region: 'South' },
+    { name: 'Maroua', region: 'Far-North' },
+    { name: 'Ngaoundéré', region: 'Adamawa' },
+    { name: 'Bertoua', region: 'East' },
+    { name: 'Limbe', region: 'South-West' },
+    { name: 'Buea', region: 'South-West' },
+    { name: 'Kumba', region: 'South-West' },
+    { name: 'Ebolowa', region: 'South' },
+    { name: 'Kribi', region: 'South' },
 ];
 
 const LocationStep = ({ city, onCityChange }) => {
@@ -65,7 +65,7 @@ const LocationStep = ({ city, onCityChange }) => {
               `}
                         >
                             <MapPin className={`w-5 h-5 flex-shrink-0 ${city === c.name ? 'text-teal' : 'text-gray-400'}`} />
-              <div>
+                            <div>
                                 <p className={`font-body text-base font-medium ${city === c.name ? 'text-teal' : 'text-ink-black'}`}>
                                     {c.name}
                                 </p>

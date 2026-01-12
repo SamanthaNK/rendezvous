@@ -1,38 +1,9 @@
-// Lazily import the optional Hugging Face client. This lets the server start
-// even if the package isn't installed or the API key isn't provided.
-let hf = null;
-(async () => {
-    if (!process.env.HUGGINGFACE_API_KEY) {
-        console.log('[AI] HUGGINGFACE_API_KEY not set; skipping Hugging Face init');
-        return;
-    }
-    try {
-        const mod = await import('@huggingface/inference');
-        const { HfInference } = mod;
-        hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
-        console.log('[AI] Hugging Face client initialized');
-    } catch (err) {
-        console.warn('[AI] Optional @huggingface/inference not available:', err.message);
-        hf = null;
-    }
-})();
+import axios from 'axios';
 
-const AI_TIMEOUT = 10000;
-
-const CATEGORIES = [
-    'Music & Concerts',
-    'Arts & Culture',
-    'Sports & Fitness',
-    'Food & Drink',
-    'Business & Networking',
-    'Technology',
-    'Health & Wellness',
-    'Community & Charity',
-    'Entertainment',
-    'Education & Workshops',
-    'Family & Kids',
-    'Nightlife',
-];
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+const AI_TIMEOUT = 30000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
 const CAMEROON_CITIES = [
     'Douala',
@@ -59,16 +30,23 @@ const normalizeText = (text) => {
         .toLowerCase();
 };
 
-const withTimeout = (promise, timeoutMs = AI_TIMEOUT) => {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('AI request timeout')), timeoutMs)
-        ),
-    ]);
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Check if AI service is available
+export const checkAIService = async () => {
+    try {
+        const response = await axios.get(`${AI_SERVICE_URL}/health`, {
+            timeout: 5000,
+        });
+        console.log('[AI Service] Health check:', response.data);
+        return response.data.status === 'healthy';
+    } catch (error) {
+        console.error('[AI Service] Health check failed:', error.message);
+        return false;
+    }
 };
 
-// Extract category using keyword matching (no AI calls)
+// Extract category using keyword matching
 const extractCategory = (query) => {
     console.log('[AI] Extracting category from:', query);
 
@@ -259,7 +237,7 @@ const extractMood = (query) => {
     return null;
 };
 
-// Main query parsing function (no AI classification calls)
+// Main query parsing function
 export const parseQuery = async (query) => {
     console.log('\n=== Query Parsing Started ===');
     console.log('[Query] Original query:', query);
@@ -293,31 +271,132 @@ export const parseQuery = async (query) => {
     return result;
 };
 
-// Generate event embeddings for recommendations (ONLY AI feature we use)
-export const generateEventEmbedding = async (eventText) => {
+// Generate event embeddings using local AI service
+export const generateEventEmbedding = async (eventText, retryCount = 0) => {
     try {
-        if (!hf) {
-            console.warn('[AI] Hugging Face client not initialized; skipping embedding generation');
-            return null;
-        }
-        console.log('[AI] Generating embedding for:', eventText.substring(0, 50) + '...');
+        console.log(`[AI Embeddings] Generating embedding (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        console.log('[AI Embeddings] Input text length:', eventText.length);
 
-        const result = await withTimeout(
-            hf.featureExtraction({
-                model: 'sentence-transformers/all-MiniLM-L6-v2',
-                inputs: eventText,
-            })
+        if (!eventText || eventText.trim().length === 0) {
+            throw new Error('Empty text provided for embedding generation');
+        }
+
+        const truncatedText = eventText.substring(0, 500);
+
+        const response = await axios.post(
+            `${AI_SERVICE_URL}/embed`,
+            { text: truncatedText },
+            { timeout: AI_TIMEOUT }
         );
 
-        console.log('[AI] Embedding generated successfully');
-        return result;
+        if (!response.data || !response.data.success) {
+            throw new Error(response.data?.error || 'AI service returned unsuccessful response');
+        }
+
+        const embedding = response.data.embedding;
+
+        if (!embedding || !Array.isArray(embedding)) {
+            throw new Error('Invalid embedding response from AI service');
+        }
+
+        console.log('[AI Embeddings] Embedding generated successfully');
+        console.log('[AI Embeddings] Embedding dimensions:', embedding.length);
+
+        return embedding;
     } catch (error) {
-        console.error('[AI] Embedding generation failed:', error.message);
+        console.error(`[AI Embeddings] Generation failed (attempt ${retryCount + 1}):`, error.message);
+
+        if (retryCount < MAX_RETRIES - 1) {
+            const delay = RETRY_DELAY * Math.pow(2, retryCount);
+            console.log(`[AI Embeddings] Retrying in ${delay}ms...`);
+            await sleep(delay);
+            return generateEventEmbedding(eventText, retryCount + 1);
+        }
+
+        console.error('[AI Embeddings] All retry attempts failed');
         return null;
     }
 };
 
-// Suggest category for event creation (keyword-based, no AI)
+// Batch generate embeddings
+export const generateBatchEmbeddings = async (events) => {
+    console.log(`[AI Embeddings] Batch processing ${events.length} events`);
+
+    const texts = events.map(event =>
+        `${event.title} ${event.description} ${event.categories.join(' ')}`.substring(0, 500)
+    );
+
+    try {
+        const response = await axios.post(
+            `${AI_SERVICE_URL}/embed/batch`,
+            { texts },
+            { timeout: AI_TIMEOUT * 2 }
+        );
+
+        if (!response.data || !response.data.success) {
+            throw new Error('Batch embedding generation failed');
+        }
+
+        const embeddings = response.data.embeddings;
+        const results = events.map((event, index) => ({
+            eventId: event._id,
+            embedding: embeddings[index],
+            success: true,
+        }));
+
+        console.log(`[AI Embeddings] Batch complete: ${results.length} embeddings generated`);
+
+        return {
+            results,
+            successCount: results.length,
+            failCount: 0,
+            totalProcessed: events.length,
+        };
+    } catch (error) {
+        console.error('[AI Embeddings] Batch generation failed:', error.message);
+
+        const results = [];
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < events.length; i++) {
+            const event = events[i];
+            console.log(`[AI Embeddings] Processing event ${i + 1}/${events.length}: ${event._id}`);
+
+            const eventText = `${event.title} ${event.description} ${event.categories.join(' ')}`;
+            const embedding = await generateEventEmbedding(eventText);
+
+            if (embedding) {
+                results.push({
+                    eventId: event._id,
+                    embedding,
+                    success: true,
+                });
+                successCount++;
+            } else {
+                results.push({
+                    eventId: event._id,
+                    embedding: null,
+                    success: false,
+                });
+                failCount++;
+            }
+
+            await sleep(200);
+        }
+
+        console.log(`[AI Embeddings] Batch complete: ${successCount} success, ${failCount} failed`);
+
+        return {
+            results,
+            successCount,
+            failCount,
+            totalProcessed: events.length,
+        };
+    }
+};
+
+// Suggest category using keyword matching
 export const suggestCategory = (description) => {
     console.log('[Category] Suggesting category for description');
 
@@ -363,43 +442,80 @@ export const suggestCategory = (description) => {
     };
 };
 
-// Calculate similarity between two text strings
+// Calculate cosine similarity
+const cosineSimilarity = (vecA, vecB) => {
+    if (!vecA || !vecB || vecA.length !== vecB.length) {
+        return 0;
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+    }
+
+    if (normA === 0 || normB === 0) {
+        return 0;
+    }
+
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+};
+
+// Find similar events
+export const findSimilarEvents = (eventEmbedding, otherEvents, topK = 5) => {
+    console.log(`[AI Similarity] Finding top ${topK} similar events from ${otherEvents.length} candidates`);
+
+    if (!eventEmbedding || !Array.isArray(eventEmbedding)) {
+        console.error('[AI Similarity] Invalid event embedding');
+        return [];
+    }
+
+    const similarities = otherEvents
+        .filter(event => event.embedding && Array.isArray(event.embedding))
+        .map(event => ({
+            event,
+            similarity: cosineSimilarity(eventEmbedding, event.embedding),
+        }))
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, topK);
+
+    console.log('[AI Similarity] Top similarities:', similarities.map(s => s.similarity.toFixed(3)));
+
+    return similarities;
+};
+
+// Calculate similarity using local AI service
 export const calculateSimilarity = async (text1, text2) => {
     try {
-        console.log('[AI] Calculating text similarity');
+        console.log('[AI Similarity] Calculating text similarity via local service');
 
-        const [embedding1, embedding2] = await Promise.all([
-            generateEventEmbedding(text1),
-            generateEventEmbedding(text2),
-        ]);
+        const response = await axios.post(
+            `${AI_SERVICE_URL}/similarity`,
+            { text1, text2 },
+            { timeout: AI_TIMEOUT }
+        );
 
-        if (!embedding1 || !embedding2) {
-            return null;
+        if (!response.data || !response.data.success) {
+            throw new Error('Similarity calculation failed');
         }
 
-        let dotProduct = 0;
-        let norm1 = 0;
-        let norm2 = 0;
+        const similarity = response.data.similarity;
 
-        for (let i = 0; i < embedding1.length; i++) {
-            dotProduct += embedding1[i] * embedding2[i];
-            norm1 += embedding1[i] * embedding1[i];
-            norm2 += embedding2[i] * embedding2[i];
-        }
-
-        const similarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
-
-        console.log('[AI] Similarity score:', similarity);
+        console.log('[AI Similarity] Similarity score:', similarity.toFixed(3));
         return similarity;
     } catch (error) {
-        console.error('[AI] Similarity calculation failed:', error.message);
+        console.error('[AI Similarity] Calculation failed:', error.message);
         return null;
     }
 };
 
-// Detect potentially fraudulent events (keyword-based, no AI)
+// Detect fraud
 export const detectFraud = (eventData) => {
-    console.log('[Fraud] Analyzing event for fraud indicators');
+    console.log('[Fraud Detection] Analyzing event for fraud indicators');
 
     const suspiciousKeywords = [
         'guaranteed',
@@ -443,7 +559,7 @@ export const detectFraud = (eventData) => {
     const isSuspicious = flagCount >= 2;
     const confidence = Math.min(flagCount / 5, 1);
 
-    console.log('[Fraud] Detection result:', { isSuspicious, confidence, flagCount });
+    console.log('[Fraud Detection] Result:', { isSuspicious, confidence, flagCount });
 
     return {
         isSuspicious,
@@ -454,9 +570,12 @@ export const detectFraud = (eventData) => {
 };
 
 export default {
+    checkAIService,
     parseQuery,
     generateEventEmbedding,
+    generateBatchEmbeddings,
     suggestCategory,
+    findSimilarEvents,
     calculateSimilarity,
     detectFraud,
 };

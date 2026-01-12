@@ -9,7 +9,6 @@ export const uploadEventImages = async (req, res) => {
     try {
         console.log('Upload request received');
         console.log('req.files:', req.files);
-        console.log('req.file:', req.file);
 
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
@@ -26,9 +25,12 @@ export const uploadEventImages = async (req, res) => {
 
         console.log('Upload successful:', uploadedImages);
 
+        const imageUrls = uploadedImages.map(img => img.url);
+
         res.status(200).json({
             success: true,
             data: {
+                urls: imageUrls,
                 images: uploadedImages,
                 count: uploadedImages.length,
             },

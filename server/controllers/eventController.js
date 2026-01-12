@@ -2,6 +2,7 @@ import Event from '../models/eventModel.js';
 import User from '../models/userModel.js';
 import OrganizerProfile from '../models/organizerProfileModel.js';
 import { deleteMultipleImages } from '../services/cloudinaryService.js';
+import { generateEventEmbedding, findSimilarEvents } from '../services/aiService.js';
 
 // Get all events with filtering and pagination
 export const getAllEvents = async (req, res) => {
@@ -47,10 +48,14 @@ export const getAllEvents = async (req, res) => {
         } else if (dateFrom || dateTo) {
             filters.date = {};
             if (dateFrom) {
-                filters.date.$gte = new Date(dateFrom);
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                filters.date.$gte = fromDate;
             }
             if (dateTo) {
-                filters.date.$lte = new Date(dateTo);
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                filters.date.$lte = toDate;
             }
         }
 
@@ -98,7 +103,6 @@ export const getAllEvents = async (req, res) => {
             profileMap[profile.user.toString()] = profile;
         });
 
-        // Attach organizer verification info
         events.forEach(event => {
             if (event.organizer?._id) {
                 const profile = profileMap[event.organizer._id.toString()];
@@ -134,7 +138,7 @@ export const getAllEvents = async (req, res) => {
     }
 };
 
-// Get single event by ID
+// Get single event by ID with similar events
 export const getEventById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -168,6 +172,24 @@ export const getEventById = async (req, res) => {
             },
         };
 
+        if (event.embedding && Array.isArray(event.embedding) && event.embedding.length > 0) {
+            const similarEventsQuery = await Event.find({
+                _id: { $ne: id },
+                status: 'published',
+                isDraft: false,
+                embedding: { $exists: true, $ne: [] },
+            })
+                .select('_id title categories date location price isFree images metrics embedding')
+                .lean();
+
+            const similarEvents = findSimilarEvents(event.embedding, similarEventsQuery, 3);
+
+            eventWithOrganizerInfo.similarEvents = similarEvents.map(s => ({
+                ...s.event,
+                similarityScore: s.similarity,
+            }));
+        }
+
         res.json({
             success: true,
             data: { event: eventWithOrganizerInfo },
@@ -177,6 +199,73 @@ export const getEventById = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch event',
+            error: error.message,
+        });
+    }
+};
+
+// Get similar events based on embeddings
+export const getSimilarEvents = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit = 6 } = req.query;
+
+        const event = await Event.findById(id)
+            .select('_id embedding categories')
+            .lean();
+
+        if (!event) {
+            return res.status(404).json({
+                success: false,
+                message: 'Event not found',
+            });
+        }
+
+        let similarEvents = [];
+
+        if (event.embedding && Array.isArray(event.embedding) && event.embedding.length > 0) {
+            const candidateEvents = await Event.find({
+                _id: { $ne: id },
+                status: 'published',
+                isDraft: false,
+                embedding: { $exists: true, $ne: [] },
+            })
+                .select('_id title categories date location price isFree images metrics organizer embedding')
+                .populate('organizer', 'name email')
+                .lean();
+
+            const { findSimilarEvents } = await import('../services/aiService.js');
+            const similarities = findSimilarEvents(event.embedding, candidateEvents, parseInt(limit));
+
+            similarEvents = similarities.map(s => ({
+                ...s.event,
+                similarityScore: s.similarity,
+            }));
+        } else {
+            similarEvents = await Event.find({
+                _id: { $ne: id },
+                categories: { $in: event.categories },
+                status: 'published',
+                isDraft: false,
+            })
+                .select('_id title categories date location price isFree images metrics organizer')
+                .populate('organizer', 'name email')
+                .limit(parseInt(limit))
+                .lean();
+        }
+
+        res.json({
+            success: true,
+            data: {
+                events: similarEvents,
+                total: similarEvents.length,
+            },
+        });
+    } catch (error) {
+        console.error('Get similar events error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch similar events',
             error: error.message,
         });
     }
@@ -229,7 +318,7 @@ export const getNearbyEvents = async (req, res) => {
     }
 };
 
-// Create new event
+// Create new event with embedding generation
 export const createEvent = async (req, res) => {
     try {
         const eventData = {
@@ -237,6 +326,7 @@ export const createEvent = async (req, res) => {
             organizer: req.user._id,
             isDraft: req.body.isDraft !== false,
             status: req.body.isDraft === false ? 'published' : 'draft',
+            date: new Date(req.body.date),
         };
 
         if (eventData.status === 'published') {
@@ -245,7 +335,21 @@ export const createEvent = async (req, res) => {
 
         const event = await Event.create(eventData);
 
-        OrganizerProfile.updateMetrics(req.user._id).exec();
+        if (eventData.status === 'published') {
+            console.log(`[Event Create] Generating embedding for event: ${event._id}`);
+
+            const eventText = `${event.title} ${event.description} ${event.categories.join(' ')}`;
+            const embedding = await generateEventEmbedding(eventText);
+
+            if (embedding) {
+                await Event.findByIdAndUpdate(event._id, { embedding });
+                console.log(`[Event Create] Embedding saved for event: ${event._id}`);
+            } else {
+                console.warn(`[Event Create] Failed to generate embedding for event: ${event._id}`);
+            }
+        }
+
+        await OrganizerProfile.updateMetrics(req.user._id);
 
         res.status(201).json({
             success: true,
@@ -264,7 +368,7 @@ export const createEvent = async (req, res) => {
     }
 };
 
-// Update event
+// Update event and regenerate embedding if needed
 export const updateEvent = async (req, res) => {
     try {
         const { id } = req.params;
@@ -294,10 +398,31 @@ export const updateEvent = async (req, res) => {
 
         const updateData = { ...req.body };
 
+        if (updateData.date) {
+            updateData.date = new Date(updateData.date);
+        }
+
         if (event.isDraft && req.body.isDraft === false) {
             updateData.status = 'published';
             updateData.publishedAt = new Date();
             updateData.isDraft = false;
+        }
+
+        const contentChanged =
+            updateData.title !== event.title ||
+            updateData.description !== event.description ||
+            JSON.stringify(updateData.categories) !== JSON.stringify(event.categories);
+
+        if (contentChanged && updateData.status === 'published') {
+            console.log(`[Event Update] Content changed, regenerating embedding for: ${id}`);
+
+            const eventText = `${updateData.title || event.title} ${updateData.description || event.description} ${(updateData.categories || event.categories).join(' ')}`;
+            const embedding = await generateEventEmbedding(eventText);
+
+            if (embedding) {
+                updateData.embedding = embedding;
+                console.log(`[Event Update] Embedding updated for event: ${id}`);
+            }
         }
 
         const updatedEvent = await Event.findByIdAndUpdate(id, updateData, {
@@ -343,7 +468,6 @@ export const deleteEvent = async (req, res) => {
             });
         }
 
-        // Extract Cloudinary public IDs
         const publicIds = event.images
             .filter((url) => url.includes('cloudinary.com'))
             .map((url) => {
@@ -368,7 +492,7 @@ export const deleteEvent = async (req, res) => {
             { $pull: { savedEvents: id, interestedEvents: id } }
         ).exec();
 
-        OrganizerProfile.updateMetrics(event.organizer).exec();
+        await OrganizerProfile.updateMetrics(req.user._id);
 
         res.json({
             success: true,

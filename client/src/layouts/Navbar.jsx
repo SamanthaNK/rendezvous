@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Search, Menu, X, User, Heart, Calendar, LogOut, Clock } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../store/authSlice';
 import { selectSearchHistory, addToHistory } from '../store/searchSlice';
+import { setView, selectView } from '../store/viewSlice';
 import { authAPI } from '../services/api';
 import Container from './Container';
 import Button from '../components/common/Button';
@@ -18,6 +19,7 @@ const Navbar = () => {
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const currentUser = useSelector(selectCurrentUser);
     const searchHistory = useSelector(selectSearchHistory);
+    const currentView = useSelector(selectView);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const searchRef = useRef(null);
@@ -80,6 +82,12 @@ const Navbar = () => {
         setIsSearchOpen(false);
     };
 
+    const handleToggleView = (e) => {
+        e.preventDefault();
+        dispatch(setView(currentView === 'list' ? 'map' : 'list'));
+        navigate('/');
+    };
+
     return (
         <nav
             className={`
@@ -102,22 +110,17 @@ const Navbar = () => {
 
                     <div className="hidden md:flex items-center gap-8">
                         <Link
-                            to="/events"
+                            to="#"
+                            onClick={handleToggleView}
+                            className="font-body text-base text-gray-700 hover:text-teal transition-colors"
+                        >
+                            {currentView === 'list' ? 'Map View' : 'List View'}
+                        </Link>
+                        <Link
+                            to="/"
                             className="font-body text-base text-gray-700 hover:text-teal transition-colors"
                         >
                             Events
-                        </Link>
-                        <Link
-                            to="/map"
-                            className="font-body text-base text-gray-700 hover:text-teal transition-colors"
-                        >
-                            Map
-                        </Link>
-                        <Link
-                            to="/organizers"
-                            className="font-body text-base text-gray-700 hover:text-teal transition-colors"
-                        >
-                            Organizers
                         </Link>
                     </div>
 
@@ -215,6 +218,19 @@ const Navbar = () => {
                                             <Calendar className="w-4 h-4" />
                                             <span>My Calendar</span>
                                         </Link>
+                                        {currentUser?.role === 'organizer' && (
+                                            <>
+                                                <div className="h-px bg-gray-200 my-2" />
+                                                <Link
+                                                    to="/organizer/dashboard"
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
+                                                    onClick={() => setIsUserMenuOpen(false)}
+                                                >
+                                                    <Calendar className="w-4 h-4" />
+                                                    <span>Organizer Dashboard</span>
+                                                </Link>
+                                            </>
+                                        )}
                                         <div className="h-px bg-gray-200 my-2" />
                                         <button
                                             onClick={handleLogout}
@@ -258,25 +274,21 @@ const Navbar = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden mt-4 pt-4 border-t border-gray-200 space-y-2 animate-fade-in">
                         <Link
-                            to="/events"
+                            to="#"
+                            className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                            onClick={(e) => {
+                                handleToggleView(e);
+                                setIsMobileMenuOpen(false);
+                            }}
+                        >
+                            {currentView === 'list' ? 'Map View' : 'List View'}
+                        </Link>
+                        <Link
+                            to="/"
                             className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
                             Events
-                        </Link>
-                        <Link
-                            to="/map"
-                            className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Map
-                        </Link>
-                        <Link
-                            to="/organizers"
-                            className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Organizers
                         </Link>
                         <Link
                             to="/search"
@@ -303,6 +315,15 @@ const Navbar = () => {
                                 >
                                     Saved Events
                                 </Link>
+                                {currentUser?.role === 'organizer' && (
+                                    <Link
+                                        to="/organizer/dashboard"
+                                        className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Organizer Dashboard
+                                    </Link>
+                                )}
                                 <button
                                     onClick={() => {
                                         handleLogout();

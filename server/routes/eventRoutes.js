@@ -3,6 +3,7 @@ import {
     getAllEvents,
     getEventById,
     getNearbyEvents,
+    getSimilarEvents,
     createEvent,
     updateEvent,
     deleteEvent,
@@ -22,6 +23,7 @@ const router = express.Router();
 router.get('/', optionalAuth, getAllEvents);
 router.get('/nearby', optionalAuth, getNearbyEvents);
 router.get('/:id', optionalAuth, getEventById);
+router.get('/:id/similar', optionalAuth, getSimilarEvents);
 
 // User
 router.get('/user/saved', authenticate, getSavedEvents);

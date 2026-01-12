@@ -44,27 +44,28 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
   };
 
   const handleDateChange = (dateFilter) => {
-    let dateFrom = '';
-    let dateTo = '';
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    let dateFrom = '';
+    let dateTo = '';
 
     switch (dateFilter) {
       case 'today':
         dateFrom = today.toISOString().split('T')[0];
         dateTo = today.toISOString().split('T')[0];
         break;
-      case 'weekend':
+      case 'weekend': {
         const dayOfWeek = today.getDay();
-        const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+        const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
         const saturday = new Date(today);
-        saturday.setDate(today.getDate() + daysUntilSaturday);
+        saturday.setDate(today.getDate() + daysToSaturday);
         const sunday = new Date(saturday);
         sunday.setDate(saturday.getDate() + 1);
         dateFrom = saturday.toISOString().split('T')[0];
         dateTo = sunday.toISOString().split('T')[0];
         break;
+      }
       case 'week':
         dateFrom = today.toISOString().split('T')[0];
         const nextWeek = new Date(today);
@@ -73,9 +74,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
         break;
       case 'month':
         dateFrom = today.toISOString().split('T')[0];
-        const nextMonth = new Date(today);
-        nextMonth.setMonth(today.getMonth() + 1);
-        dateTo = nextMonth.toISOString().split('T')[0];
+        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        dateTo = lastDayOfMonth.toISOString().split('T')[0];
         break;
       default:
         break;
@@ -173,8 +173,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
                 key={option}
                 onClick={() => handleDateChange(option)}
                 className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.dateFilter === option
-                    ? 'bg-teal/10 text-teal font-semibold'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-teal/10 text-teal font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {option === 'today' && 'Today'}
@@ -197,8 +197,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
                 key={option}
                 onClick={() => handlePriceChange(option)}
                 className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.priceFilter === option
-                    ? 'bg-teal/10 text-teal font-semibold'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-teal/10 text-teal font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {option === 'free' && 'Free'}
@@ -221,8 +221,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
                 key={city}
                 onClick={() => handleCityChange(city)}
                 className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.city === city
-                    ? 'bg-teal/10 text-teal font-semibold'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-teal/10 text-teal font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {city}
@@ -242,8 +242,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
                 key={category}
                 onClick={() => handleCategoryToggle(category)}
                 className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.category === category
-                    ? 'bg-teal/10 text-teal font-semibold'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-teal/10 text-teal font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {category}

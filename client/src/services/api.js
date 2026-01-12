@@ -57,6 +57,7 @@ export const eventsAPI = {
     getAll: (params) => api.get('/events', { params }),
     getById: (id) => api.get(`/events/${id}`),
     getNearby: (params) => api.get('/events/nearby', { params }),
+    getSimilar: (id, params) => api.get(`/events/${id}/similar`, { params }),
     create: (eventData) => api.post('/events', eventData),
     update: (id, eventData) => api.put(`/events/${id}`, eventData),
     delete: (id) => api.delete(`/events/${id}`),
@@ -66,8 +67,8 @@ export const eventsAPI = {
     markInterested: (id) => api.post(`/events/${id}/interest`),
     unmarkInterested: (id) => api.delete(`/events/${id}/interest`),
 
-    getSaved: () => api.get('/events/user/saved'),
-    getInterested: () => api.get('/events/user/interested'),
+    getSaved: (params) => api.get('/events/user/saved', { params }),
+    getInterested: (params) => api.get('/events/user/interested', { params }),
 
     getMyEvents: (params) => api.get('/events/organizer/my-events', { params }),
 };

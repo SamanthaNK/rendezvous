@@ -49,14 +49,25 @@ export const naturalLanguageSearch = async (req, res) => {
             filters.price = { $lte: parsedParams.budget.maxPrice };
         }
 
-        if (parsedParams.timeframe.dateFrom) {
-            filters.date = filters.date || {};
-            filters.date.$gte = parsedParams.timeframe.dateFrom;
+        if (parsedParams.timeframe.dateFrom || parsedParams.timeframe.dateTo) {
+            filters.date = {};
+
+            if (parsedParams.timeframe.dateFrom) {
+                const fromDate = new Date(parsedParams.timeframe.dateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                filters.date.$gte = fromDate;
+            }
+
+            if (parsedParams.timeframe.dateTo) {
+                const toDate = new Date(parsedParams.timeframe.dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                filters.date.$lte = toDate;
+            }
         }
-        if (parsedParams.timeframe.dateTo) {
-            filters.date = filters.date || {};
-            filters.date.$lte = parsedParams.timeframe.dateTo;
-        }
+
+        console.log('[Search Debug] Original query:', query);
+        console.log('[Search Debug] Parsed params:', JSON.stringify(parsedParams, null, 2));
+        console.log('[Search Debug] MongoDB filters:', JSON.stringify(filters, null, 2));
 
         console.log('Applied filters:', JSON.stringify(filters, null, 2));
 

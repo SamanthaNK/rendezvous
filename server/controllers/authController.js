@@ -11,7 +11,7 @@ import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailSer
 // Register a new user
 export const register = async (req, res) => {
     try {
-        const { name, email, password, interests, location } = req.body;
+        const { name, email, password, interests, location, role } = req.body;
 
         if (!name || !email || !password || !interests || !location) {
             return res.status(400).json({
@@ -51,6 +51,7 @@ export const register = async (req, res) => {
             password,
             interests,
             location,
+            role: role || 'user', // Set role from request body, default to 'user'
             emailVerificationToken: hashedToken,
             emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         });

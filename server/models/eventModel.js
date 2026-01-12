@@ -125,14 +125,20 @@ const eventSchema = new mongoose.Schema(
         contactInfo: {
             phone: {
                 type: String,
-                required: [true, 'Contact phone is required'],
                 trim: true,
+                default: '',
             },
             email: {
                 type: String,
-                required: [true, 'Contact email is required'],
                 trim: true,
-                match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email'],
+                default: '',
+                validate: {
+                    validator: function (value) {
+                        if (!value || value.trim().length === 0) return true;
+                        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+                    },
+                    message: 'Please provide a valid email address',
+                },
             },
         },
         images: {

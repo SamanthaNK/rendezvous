@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -11,6 +12,8 @@ import {
   Share2,
   ExternalLink,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Image as ImageIcon } from 'lucide-react';
 import { selectIsAuthenticated } from '../store/authSlice';
@@ -19,6 +22,83 @@ import Container from '../layouts/Container';
 import Button from '../components/common/Button';
 import EventCard from '../components/event/EventCard';
 import Spinner from '../components/common/Spinner';
+import { formatDate } from '../utils/dateHelpers';
+
+const ImageGallery = ({ images, title }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (!images || images.length === 0) return null;
+  if (images.length === 1) return null; // No gallery needed for single image
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  return (
+    <div className="mt-6">
+      <h3 className="font-heading text-lg font-semibold text-ink-black mb-4">
+        More Photos ({images.length})
+      </h3>
+
+      <div className="relative">
+        {/* Main Image */}
+        <div className="relative h-96 bg-gray-100 rounded-xl overflow-hidden">
+          <img
+            src={images[currentIndex]}
+            alt={`${title} - Photo ${currentIndex + 1}`}
+            className="w-full h-full object-cover"
+          />
+
+          {/* Navigation Arrows */}
+          <button
+            onClick={goToPrevious}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg"
+            aria-label="Previous image"
+          >
+            <ChevronLeft className="w-6 h-6 text-ink-black" />
+          </button>
+
+          <button
+            onClick={goToNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg"
+            aria-label="Next image"
+          >
+            <ChevronRight className="w-6 h-6 text-ink-black" />
+          </button>
+
+          {/* Image Counter */}
+          <div className="absolute bottom-4 right-4 px-3 py-1 bg-ink-black/70 text-white text-sm rounded-full">
+            {currentIndex + 1} / {images.length}
+          </div>
+        </div>
+
+        {/* Thumbnail Strip */}
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+          {images.map((image, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 transition-all ${currentIndex === index
+                ? 'border-teal scale-105'
+                : 'border-gray-200 hover:border-gray-400'
+                }`}
+            >
+              <img
+                src={image}
+                alt={`Thumbnail ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EventDetailsPage = () => {
   const { id } = useParams();
@@ -135,14 +215,7 @@ const EventDetailsPage = () => {
     setTimeout(() => setShareSuccess(false), 2000);
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  const formattedDate = event ? formatDate(event.date, 'long') : '';
 
   if (loading) {
     return (
@@ -208,13 +281,13 @@ const EventDetailsPage = () => {
                 </Link>
               </div>
               <div>
-                <h2 className="font-heading text-2xl font-bold text-ink-black mb-4">
-                  About This Event
-                </h2>
                 <p className="font-body text-base text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {event.description}
                 </p>
               </div>
+              {event.images && event.images.length > 1 && (
+                <ImageGallery images={event.images} title={event.title} />
+              )}
               {event.socialLinks && Object.keys(event.socialLinks).some((key) => event.socialLinks[key]) && (
                 <div className="pt-6 border-t border-gray-200">
                   <h3 className="font-heading text-xl font-bold text-ink-black mb-4">
@@ -268,7 +341,7 @@ const EventDetailsPage = () => {
                     <div>
                       <p className="font-body text-sm text-gray-500">Date & Time</p>
                       <p className="font-body text-base font-semibold text-ink-black">
-                        {formatDate(event.date)}
+                        {formattedDate}
                       </p>
                       <p className="font-body text-sm text-gray-600">{event.time}</p>
                     </div>
