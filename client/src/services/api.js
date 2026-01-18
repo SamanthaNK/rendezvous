@@ -58,6 +58,7 @@ export const eventsAPI = {
     getById: (id) => api.get(`/events/${id}`),
     getNearby: (params) => api.get('/events/nearby', { params }),
     getSimilar: (id, params) => api.get(`/events/${id}/similar`, { params }),
+    getPersonalizedFeed: (params) => api.get('/events/feed', { params }),
     create: (eventData) => api.post('/events', eventData),
     update: (id, eventData) => api.put(`/events/${id}`, eventData),
     delete: (id) => api.delete(`/events/${id}`),

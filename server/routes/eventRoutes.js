@@ -14,6 +14,7 @@ import {
     getSavedEvents,
     getInterestedEvents,
     getMyEvents,
+    getEventFeed,
 } from '../controllers/eventController.js';
 import { authenticate, optionalAuth } from '../middleware/authMiddleware.js';
 import { requireOrganizer } from '../middleware/roleCheck.js';
@@ -22,6 +23,7 @@ const router = express.Router();
 
 router.get('/', optionalAuth, getAllEvents);
 router.get('/nearby', optionalAuth, getNearbyEvents);
+router.get('/feed', authenticate, getEventFeed);
 router.get('/:id', optionalAuth, getEventById);
 router.get('/:id/similar', optionalAuth, getSimilarEvents);
 

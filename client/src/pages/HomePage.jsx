@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { Search, MapPin, SlidersHorizontal, X } from 'lucide-react';
+// client/src/pages/HomePage.jsx
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { Search, MapPin, SlidersHorizontal, X, Sparkles } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser } from '../store/authSlice';
 import { eventsAPI } from '../services/api';
 import { setView, selectView } from '../store/viewSlice';
@@ -10,19 +11,8 @@ import Button from '../components/common/Button';
 import EventGrid from '../components/event/EventGrid';
 import FilterSidebar from '../components/event/FilterSidebar';
 import MapViewPage from './MapViewPage';
-
-const CITIES = [
-  { label: 'Douala', value: 'Douala' },
-  { label: 'Yaoundé', value: 'Yaoundé' },
-  { label: 'Garoua', value: 'Garoua' },
-  { label: 'Bamenda', value: 'Bamenda' },
-  { label: 'Bafoussam', value: 'Bafoussam' },
-  { label: 'Maroua', value: 'Maroua' },
-  { label: 'Ngaoundéré', value: 'Ngaoundéré' },
-  { label: 'Bertoua', value: 'Bertoua' },
-  { label: 'Limbe', value: 'Limbe' },
-  { label: 'Buea', value: 'Buea' },
-];
+import FeedEmptyState from '../components/event/FeedEmptyState';
+import { SkeletonCard } from '../components/common/Skeleton';
 
 const QUICK_FILTERS = [
   { label: 'Tonight', value: 'tonight' },
@@ -37,15 +27,18 @@ const HomePage = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
   const currentView = useSelector(selectView);
-  const cityDropdownRef = useRef(null);
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeQuickFilter, setActiveQuickFilter] = useState('');
+  const [showForYou, setShowForYou] = useState(false);
   const [showFilterSidebar, setShowFilterSidebar] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [isColdStart, setIsColdStart] = useState(false);
 
   const [filters, setFilters] = useState({
     category: '',
@@ -59,50 +52,91 @@ const HomePage = () => {
     priceFilter: '',
   });
 
-  const fetchEvents = async (page = 1) => {
-    try {
-      setLoading(true);
-      const params = {
-        page,
-        limit: 12,
-      };
-
-      if (filters.category) params.category = filters.category;
-      if (filters.city) params.city = filters.city;
-      if (filters.dateFrom) params.dateFrom = filters.dateFrom;
-      if (filters.dateTo) params.dateTo = filters.dateTo;
-      if (filters.isFree === 'true') params.isFree = 'true';
-      if (filters.priceMin) params.priceMin = filters.priceMin;
-      if (filters.priceMax) params.priceMax = filters.priceMax;
-
-      const response = await eventsAPI.getAll(params);
-
-      if (response.data.success) {
-        setEvents(response.data.data.events);
-        setTotalPages(response.data.data.pagination.totalPages);
-        setCurrentPage(response.data.data.pagination.currentPage);
-      }
-    } catch (error) {
-      console.error('Fetch events error:', error);
-    } finally {
-      setLoading(false);
-    }
+  const hasActiveFilters = () => {
+    return !!(
+      filters.category ||
+      filters.city ||
+      filters.dateFilter ||
+      filters.priceFilter ||
+      activeQuickFilter
+    );
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [filters]);
+  const fetchEvents = useCallback(
+    async (page = 1, append = false) => {
+      try {
+        if (!append) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
-        setShowCityDropdown(false);
+        const params = {
+          page,
+          limit: 12,
+        };
+
+        let response;
+
+        if (showForYou && isAuthenticated) {
+          response = await eventsAPI.getPersonalizedFeed(params);
+
+          if (response.data.success) {
+            const newEvents = response.data.data.events;
+            const feedComp = response.data.data.feedComposition;
+            const pagination = response.data.data.pagination;
+
+            setIsColdStart(feedComp?.isColdStart || false);
+            setHasMore(pagination?.hasMore || false);
+            setTotalPages(pagination?.totalPages || 1);
+
+            if (append) {
+              setEvents((prev) => [...prev, ...newEvents]);
+            } else {
+              setEvents(newEvents);
+            }
+          }
+        } else {
+          if (filters.category) params.category = filters.category;
+          if (filters.city) params.city = filters.city;
+          if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+          if (filters.dateTo) params.dateTo = filters.dateTo;
+          if (filters.isFree === 'true') params.isFree = 'true';
+          if (filters.priceMin) params.priceMin = filters.priceMin;
+          if (filters.priceMax) params.priceMax = filters.priceMax;
+
+          response = await eventsAPI.getAll(params);
+
+          if (response.data.success) {
+            const newEvents = response.data.data.events;
+            const pagination = response.data.data.pagination;
+
+            setIsColdStart(false);
+            setHasMore(pagination.currentPage < pagination.totalPages);
+            setTotalPages(pagination.totalPages);
+
+            if (append) {
+              setEvents((prev) => [...prev, ...newEvents]);
+            } else {
+              setEvents(newEvents);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Fetch events error:', error);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
       }
-    };
+    },
+    [showForYou, isAuthenticated, filters]
+  );
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useEffect(() => {
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchEvents(1, false);
+  }, [filters, showForYou, fetchEvents]);
 
   const handleQuickFilter = (filterValue) => {
     const today = new Date();
@@ -156,10 +190,37 @@ const HomePage = () => {
       }
     }
 
+    setShowForYou(false);
     setFilters(newFilters);
   };
 
+  const handleForYouToggle = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    const newShowForYou = !showForYou;
+    setShowForYou(newShowForYou);
+
+    if (newShowForYou) {
+      setActiveQuickFilter('');
+      setFilters({
+        category: '',
+        city: '',
+        dateFrom: '',
+        dateTo: '',
+        dateFilter: '',
+        isFree: '',
+        priceMin: '',
+        priceMax: '',
+        priceFilter: '',
+      });
+    }
+  };
+
   const handleFilterChange = (newFilters) => {
+    setShowForYou(false);
     setFilters(newFilters);
     setActiveQuickFilter('');
   };
@@ -177,12 +238,13 @@ const HomePage = () => {
       priceFilter: '',
     });
     setActiveQuickFilter('');
+    setShowForYou(false);
   };
 
   const handleLoadMore = () => {
-    if (currentPage < totalPages) {
-      fetchEvents(currentPage + 1);
-    }
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    fetchEvents(nextPage, true);
   };
 
   const handleSearch = (e) => {
@@ -190,6 +252,17 @@ const HomePage = () => {
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
+  };
+
+  const handleToggleView = () => {
+    dispatch(setView(currentView === 'list' ? 'map' : 'list'));
+  };
+
+  const getPageTitle = () => {
+    if (showForYou && isAuthenticated) {
+      return `For You, ${currentUser?.name?.split(' ')[0]}`;
+    }
+    return 'Upcoming Events';
   };
 
   return (
@@ -236,18 +309,40 @@ const HomePage = () => {
       <section className="py-6 border-b border-gray-200">
         <Container>
           <div className="flex items-center gap-3 overflow-x-auto pb-2">
+            {isAuthenticated && (
+              <button
+                onClick={handleForYouToggle}
+                className={`px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${showForYou
+                    ? 'bg-teal text-white'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
+                  }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                For You
+              </button>
+            )}
+
             {QUICK_FILTERS.map((filter) => (
               <button
                 key={filter.value}
                 onClick={() => handleQuickFilter(filter.value)}
                 className={`px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap transition-all ${activeQuickFilter === filter.value
-                  ? 'bg-teal text-white'
-                  : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
+                    ? 'bg-teal text-white'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
                   }`}
               >
                 {filter.label}
               </button>
             ))}
+
+            <button
+              onClick={handleToggleView}
+              className="px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap border border-gray-200 text-gray-700 hover:border-teal hover:text-teal transition-all flex items-center gap-2"
+            >
+              <MapPin className="w-4 h-4" />
+              {currentView === 'list' ? 'Map View' : 'List View'}
+            </button>
+
             <button
               onClick={() => setShowFilterSidebar(!showFilterSidebar)}
               className="ml-auto px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap border border-gray-200 text-gray-700 hover:border-teal hover:text-teal transition-all flex items-center gap-2"
@@ -277,32 +372,55 @@ const HomePage = () => {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-heading text-2xl font-bold text-ink-black">
-                  {isAuthenticated
-                    ? `Events for ${currentUser?.name?.split(' ')[0]}`
-                    : 'Upcoming Events'}
+                  {getPageTitle()}
                 </h2>
-                {(filters.category ||
-                  filters.city ||
-                  filters.dateFilter ||
-                  filters.priceFilter) && (
-                    <button
-                      onClick={handleClearFilters}
-                      className="font-body text-sm text-teal font-semibold hover:underline flex items-center gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Clear Filters
-                    </button>
-                  )}
+                {(hasActiveFilters() || showForYou) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="font-body text-sm text-teal font-semibold hover:underline flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear Filters
+                  </button>
+                )}
               </div>
 
-              <EventGrid events={events} loading={loading} />
-
-              {!loading && events.length > 0 && currentPage < totalPages && (
-                <div className="mt-12 text-center">
-                  <Button variant="secondary" size="lg" onClick={handleLoadMore}>
-                    Load More Events
-                  </Button>
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <SkeletonCard key={index} />
+                  ))}
                 </div>
+              ) : events.length === 0 ? (
+                <FeedEmptyState
+                  isColdStart={showForYou && isColdStart}
+                  userName={currentUser?.name?.split(' ')[0]}
+                />
+              ) : (
+                <>
+                  <EventGrid events={events} loading={false} />
+
+                  {!loading && events.length > 0 && hasMore && (
+                    <div className="mt-12 text-center">
+                      <Button
+                        variant="secondary"
+                        size="lg"
+                        onClick={handleLoadMore}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? 'Loading...' : 'Load More'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {!hasMore && events.length > 0 && (
+                    <div className="mt-12 text-center">
+                      <p className="font-body text-sm text-gray-500">
+                        No more events to show
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

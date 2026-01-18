@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Menu, X, User, Heart, Calendar, LogOut, Clock } from 'lucide-react';
+import { Search, Menu, X, User, Heart, LogOut, Clock, Calendar } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../store/authSlice';
 import { selectSearchHistory, addToHistory } from '../store/searchSlice';
-import { setView, selectView } from '../store/viewSlice';
 import { authAPI } from '../services/api';
 import Container from './Container';
 import Button from '../components/common/Button';
@@ -19,7 +18,6 @@ const Navbar = () => {
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const currentUser = useSelector(selectCurrentUser);
     const searchHistory = useSelector(selectSearchHistory);
-    const currentView = useSelector(selectView);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const searchRef = useRef(null);
@@ -55,6 +53,10 @@ const Navbar = () => {
         setIsUserMenuOpen(!isUserMenuOpen);
     };
 
+    const closeMobileMenu = () => {
+        setIsMobileMenuOpen(false);
+    };
+
     const handleLogout = async () => {
         try {
             await authAPI.logout();
@@ -64,6 +66,7 @@ const Navbar = () => {
             dispatch(logout());
             navigate('/');
             setIsUserMenuOpen(false);
+            closeMobileMenu();
         }
     };
 
@@ -82,12 +85,6 @@ const Navbar = () => {
         setIsSearchOpen(false);
     };
 
-    const handleToggleView = (e) => {
-        e.preventDefault();
-        dispatch(setView(currentView === 'list' ? 'map' : 'list'));
-        navigate('/');
-    };
-
     return (
         <nav
             className={`
@@ -101,6 +98,7 @@ const Navbar = () => {
                         to="/"
                         className="flex items-center gap-2 group"
                         aria-label="Rendezvous home"
+                        onClick={closeMobileMenu}
                     >
                         <div className="w-4 h-4 bg-lime-cream rounded-full transition-transform group-hover:scale-125" />
                         <span className="font-logo text-2xl font-semibold tracking-tight text-ink-black">
@@ -109,13 +107,6 @@ const Navbar = () => {
                     </Link>
 
                     <div className="hidden md:flex items-center gap-8">
-                        <Link
-                            to="#"
-                            onClick={handleToggleView}
-                            className="font-body text-base text-gray-700 hover:text-teal transition-colors"
-                        >
-                            {currentView === 'list' ? 'Map View' : 'List View'}
-                        </Link>
                         <Link
                             to="/"
                             className="font-body text-base text-gray-700 hover:text-teal transition-colors"
@@ -195,28 +186,12 @@ const Navbar = () => {
                                 {isUserMenuOpen && (
                                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 shadow-dropdown p-2 animate-dropdown-fade">
                                         <Link
-                                            to="/profile"
-                                            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
-                                            onClick={() => setIsUserMenuOpen(false)}
-                                        >
-                                            <User className="w-4 h-4" />
-                                            <span>Profile</span>
-                                        </Link>
-                                        <Link
                                             to="/saved"
                                             className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
                                             onClick={() => setIsUserMenuOpen(false)}
                                         >
                                             <Heart className="w-4 h-4" />
                                             <span>Saved Events</span>
-                                        </Link>
-                                        <Link
-                                            to="/planner"
-                                            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
-                                            onClick={() => setIsUserMenuOpen(false)}
-                                        >
-                                            <Calendar className="w-4 h-4" />
-                                            <span>My Calendar</span>
                                         </Link>
                                         {currentUser?.role === 'organizer' && (
                                             <>
@@ -274,26 +249,16 @@ const Navbar = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden mt-4 pt-4 border-t border-gray-200 space-y-2 animate-fade-in">
                         <Link
-                            to="#"
-                            className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={(e) => {
-                                handleToggleView(e);
-                                setIsMobileMenuOpen(false);
-                            }}
-                        >
-                            {currentView === 'list' ? 'Map View' : 'List View'}
-                        </Link>
-                        <Link
                             to="/"
                             className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={() => setIsMobileMenuOpen(false)}
+                            onClick={closeMobileMenu}
                         >
                             Events
                         </Link>
                         <Link
                             to="/search"
                             className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={() => setIsMobileMenuOpen(false)}
+                            onClick={closeMobileMenu}
                         >
                             Search Events
                         </Link>
@@ -302,16 +267,9 @@ const Navbar = () => {
                             <>
                                 <div className="h-px bg-gray-200 my-2" />
                                 <Link
-                                    to="/profile"
-                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Profile
-                                </Link>
-                                <Link
                                     to="/saved"
                                     className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    onClick={closeMobileMenu}
                                 >
                                     Saved Events
                                 </Link>
@@ -319,16 +277,13 @@ const Navbar = () => {
                                     <Link
                                         to="/organizer/dashboard"
                                         className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        onClick={closeMobileMenu}
                                     >
                                         Organizer Dashboard
                                     </Link>
                                 )}
                                 <button
-                                    onClick={() => {
-                                        handleLogout();
-                                        setIsMobileMenuOpen(false);
-                                    }}
+                                    onClick={handleLogout}
                                     className="w-full text-left px-4 py-2.5 rounded-md text-base font-body text-error hover:bg-error/5 transition-colors"
                                 >
                                     Logout
@@ -343,7 +298,7 @@ const Navbar = () => {
                                         fullWidth
                                         onClick={() => {
                                             navigate('/register');
-                                            setIsMobileMenuOpen(false);
+                                            closeMobileMenu();
                                         }}
                                     >
                                         Sign Up
@@ -353,7 +308,7 @@ const Navbar = () => {
                                         fullWidth
                                         onClick={() => {
                                             navigate('/login');
-                                            setIsMobileMenuOpen(false);
+                                            closeMobileMenu();
                                         }}
                                     >
                                         Login

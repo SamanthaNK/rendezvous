@@ -3,7 +3,6 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import PropTypes from 'prop-types';
 
-// Fix Leaflet default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -11,16 +10,40 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+// Default center: Yaounde, Cameroon
 const YAOUNDE_COORDS = [3.848, 11.5021];
 
+const isValidCoordinate = (coords) => {
+  if (!coords || coords.length !== 2) return false;
+  const [lng, lat] = coords;
+
+  if (lng === 0 && lat === 0) return false;
+
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+
+  return true;
+};
+
 const MapViewPage = ({ events }) => {
-  // Filter events with valid coordinates
   const validEvents = events.filter(event => {
     const coords = event.location?.coordinates?.coordinates;
-    if (!coords || coords.length !== 2) return false;
-    const [lng, lat] = coords;
-    return lng !== 0 && lat !== 0;
+    return isValidCoordinate(coords);
   });
+
+  if (validEvents.length === 0) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-8">
+          <p className="font-heading text-xl font-semibold text-ink-black mb-2">
+            No Events with Valid Locations
+          </p>
+          <p className="font-body text-base text-gray-600">
+            The events in your current filter don't have map coordinates yet.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>

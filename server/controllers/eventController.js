@@ -3,6 +3,21 @@ import User from '../models/userModel.js';
 import OrganizerProfile from '../models/organizerProfileModel.js';
 import { deleteMultipleImages } from '../services/cloudinaryService.js';
 import { generateEventEmbedding, findSimilarEvents } from '../services/aiService.js';
+import { getPersonalizedFeed } from '../services/recommendationService.js';
+
+// In-memory cache for feed recommendations
+const feedCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Clear expired cache entries periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of feedCache.entries()) {
+        if (now - value.timestamp > CACHE_TTL) {
+            feedCache.delete(key);
+        }
+    }
+}, 60 * 1000); // Clean every minute
 
 // Get all events with filtering and pagination
 export const getAllEvents = async (req, res) => {
@@ -787,4 +802,331 @@ export const getMyEvents = async (req, res) => {
             error: error.message,
         });
     }
+};
+
+// Get trending events based on engagement
+const getTrendingEvents = async (userId, limit = 5) => {
+    try {
+        const user = await User.findById(userId)
+            .select('savedEvents interestedEvents')
+            .lean();
+
+        const excludeEventIds = [
+            ...user.savedEvents.map(id => id.toString()),
+            ...user.interestedEvents.map(id => id.toString())
+        ];
+
+        // Calculate engagement score: saves * 2 + interested * 1
+        const trendingEvents = await Event.aggregate([
+            {
+                $match: {
+                    _id: { $nin: excludeEventIds.map(id => new mongoose.Types.ObjectId(id)) },
+                    status: 'published',
+                    isDraft: false,
+                    date: { $gte: new Date() }
+                }
+            },
+            {
+                $addFields: {
+                    engagementScore: {
+                        $add: [
+                            { $multiply: [{ $ifNull: ['$metrics.saves', 0] }, 2] },
+                            { $ifNull: ['$metrics.interested', 0] }
+                        ]
+                    }
+                }
+            },
+            {
+                $sort: { engagementScore: -1 }
+            },
+            {
+                $limit: limit
+            }
+        ]);
+
+        const populatedEvents = await Event.populate(trendingEvents, {
+            path: 'organizer',
+            select: 'name email'
+        });
+
+        return populatedEvents.map(event => ({
+            ...event,
+            isTrending: true,
+            explanation: 'Trending now'
+        }));
+    } catch (error) {
+        console.error('[Trending Events] Error:', error);
+        return [];
+    }
+};
+
+// Get events from followed organizers
+const getFollowedOrganizerEvents = async (userId, limit = 5) => {
+    try {
+        const user = await User.findById(userId)
+            .select('followedOrganizers savedEvents interestedEvents')
+            .lean();
+
+        if (!user.followedOrganizers || user.followedOrganizers.length === 0) {
+            return [];
+        }
+
+        const excludeEventIds = [
+            ...user.savedEvents.map(id => id.toString()),
+            ...user.interestedEvents.map(id => id.toString())
+        ];
+
+        const events = await Event.find({
+            organizer: { $in: user.followedOrganizers },
+            _id: { $nin: excludeEventIds },
+            status: 'published',
+            isDraft: false,
+            date: { $gte: new Date() }
+        })
+            .select('title description categories date location price isFree images metrics organizer')
+            .populate('organizer', 'name email')
+            .sort('-publishedAt')
+            .limit(limit)
+            .lean();
+
+        return events.map(event => ({
+            ...event,
+            fromFollowedOrganizer: true,
+            explanation: `New from ${event.organizer.name}`
+        }));
+    } catch (error) {
+        console.error('[Followed Organizers] Error:', error);
+        return [];
+    }
+};
+
+// Mix different event sources intelligently
+const mixFeedEvents = (recommended, followed, trending) => {
+    const mixed = [];
+    const seenIds = new Set();
+
+    // Add followed organizer events first (highest priority)
+    for (const event of followed) {
+        const eventId = event._id.toString();
+        if (!seenIds.has(eventId)) {
+            mixed.push(event);
+            seenIds.add(eventId);
+        }
+    }
+
+    // Mesh recommended and trending events
+    const maxLength = Math.max(recommended.length, trending.length);
+
+    for (let i = 0; i < maxLength; i++) {
+        // Add 3 recommended events
+        for (let j = 0; j < 3 && i * 3 + j < recommended.length; j++) {
+            const event = recommended[i * 3 + j];
+            const eventId = event._id.toString();
+            if (!seenIds.has(eventId)) {
+                mixed.push(event);
+                seenIds.add(eventId);
+            }
+        }
+
+        // Add 1 trending event
+        if (i < trending.length) {
+            const event = trending[i];
+            const eventId = event._id.toString();
+            if (!seenIds.has(eventId)) {
+                mixed.push(event);
+                seenIds.add(eventId);
+            }
+        }
+    }
+
+    return mixed;
+};
+
+// Get personalized event feed
+export const getEventFeed = async (req, res) => {
+    try {
+        const userId = req.user._id.toString();
+        const { page = 1, limit = 12, refresh = 'false' } = req.query;
+
+        console.log(`[Feed] User: ${userId}, Page: ${page}, Refresh: ${refresh}`);
+
+        const cacheKey = `${userId}-${page}-${limit}`;
+        const now = Date.now();
+
+        // Check cache
+        if (refresh !== 'true' && feedCache.has(cacheKey)) {
+            const cached = feedCache.get(cacheKey);
+            if (now - cached.timestamp < CACHE_TTL) {
+                console.log('[Feed] Returning cached results');
+                return res.json({
+                    success: true,
+                    data: cached.data,
+                    message: 'Personalized feed retrieved',
+                    cached: true
+                });
+            } else {
+                feedCache.delete(cacheKey);
+            }
+        }
+
+        if (parseInt(page) === 1) {
+            console.log('[Feed] Generating fresh feed for page 1');
+
+            // Get personalized recommendations (60% of feed)
+            const recommendedCount = Math.ceil(parseInt(limit) * 0.6);
+            const recommendedResult = await getPersonalizedFeed(
+                userId,
+                1,
+                recommendedCount
+            );
+
+            // Get followed organizer events (20% of feed)
+            const followedCount = Math.ceil(parseInt(limit) * 0.2);
+            const followedEvents = await getFollowedOrganizerEvents(
+                userId,
+                followedCount
+            );
+
+            // Get trending events (20% of feed)
+            const trendingCount = Math.ceil(parseInt(limit) * 0.2);
+            const trendingEvents = await getTrendingEvents(userId, trendingCount);
+
+            // Mix all sources
+            const mixedEvents = mixFeedEvents(
+                recommendedResult.events,
+                followedEvents,
+                trendingEvents
+            );
+
+            const finalEvents = mixedEvents.slice(0, parseInt(limit));
+
+            const organizerIds = finalEvents.map(e => e.organizer?._id).filter(Boolean);
+            const organizerProfiles = await OrganizerProfile.find({
+                user: { $in: organizerIds }
+            })
+                .select('user isVerified verificationBadge metrics.averageRating')
+                .lean();
+
+            const profileMap = {};
+            organizerProfiles.forEach(profile => {
+                profileMap[profile.user.toString()] = profile;
+            });
+
+            finalEvents.forEach(event => {
+                if (event.organizer?._id) {
+                    const profile = profileMap[event.organizer._id.toString()];
+                    if (profile) {
+                        event.organizer.isVerified = profile.isVerified;
+                        event.organizer.verificationBadge = profile.verificationBadge;
+                    }
+                }
+            });
+
+            const responseData = {
+                events: finalEvents,
+                pagination: {
+                    currentPage: 1,
+                    hasMore: mixedEvents.length > parseInt(limit),
+                    totalInFeed: mixedEvents.length
+                },
+                feedComposition: {
+                    recommended: recommendedResult.events.length,
+                    followed: followedEvents.length,
+                    trending: trendingEvents.length,
+                    isColdStart: recommendedResult.isColdStart
+                }
+            };
+
+            // Cache the result
+            feedCache.set(cacheKey, {
+                data: responseData,
+                timestamp: now
+            });
+
+            return res.json({
+                success: true,
+                data: responseData,
+                message: 'Personalized feed retrieved',
+                cached: false
+            });
+        }
+
+        // For subsequent pages, use pure recommendations
+        console.log(`[Feed] Fetching recommendations for page ${page}`);
+
+        const recommendedResult = await getPersonalizedFeed(
+            userId,
+            parseInt(page),
+            parseInt(limit)
+        );
+
+        // Populate organizer profile data
+        const organizerIds = recommendedResult.events.map(e => e.organizer?._id).filter(Boolean);
+        const organizerProfiles = await OrganizerProfile.find({
+            user: { $in: organizerIds }
+        })
+            .select('user isVerified verificationBadge metrics.averageRating')
+            .lean();
+
+        const profileMap = {};
+        organizerProfiles.forEach(profile => {
+            profileMap[profile.user.toString()] = profile;
+        });
+
+        recommendedResult.events.forEach(event => {
+            if (event.organizer?._id) {
+                const profile = profileMap[event.organizer._id.toString()];
+                if (profile) {
+                    event.organizer.isVerified = profile.isVerified;
+                    event.organizer.verificationBadge = profile.verificationBadge;
+                }
+            }
+        });
+
+        const responseData = {
+            events: recommendedResult.events,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: recommendedResult.pagination.totalPages,
+                hasMore: parseInt(page) < recommendedResult.pagination.totalPages
+            },
+            feedComposition: {
+                recommended: recommendedResult.events.length,
+                followed: 0,
+                trending: 0,
+                isColdStart: recommendedResult.isColdStart
+            }
+        };
+
+        // Cache the result
+        feedCache.set(cacheKey, {
+            data: responseData,
+            timestamp: now
+        });
+
+        return res.json({
+            success: true,
+            data: responseData,
+            message: 'Personalized feed retrieved',
+            cached: false
+        });
+    } catch (error) {
+        console.error('[Feed] Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to load personalized feed',
+            error: error.message
+        });
+    }
+};
+
+// Clear user's feed cache (useful after user updates interests)
+export const clearUserFeedCache = (userId) => {
+    const userIdStr = userId.toString();
+    for (const key of feedCache.keys()) {
+        if (key.startsWith(userIdStr)) {
+            feedCache.delete(key);
+        }
+    }
+    console.log(`[Feed Cache] Cleared cache for user: ${userIdStr}`);
 };
