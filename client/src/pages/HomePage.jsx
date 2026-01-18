@@ -313,8 +313,8 @@ const HomePage = () => {
               <button
                 onClick={handleForYouToggle}
                 className={`px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${showForYou
-                    ? 'bg-teal text-white'
-                    : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
+                  ? 'bg-teal text-white'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
                   }`}
               >
                 <Sparkles className="w-4 h-4" />
@@ -327,8 +327,8 @@ const HomePage = () => {
                 key={filter.value}
                 onClick={() => handleQuickFilter(filter.value)}
                 className={`px-4 py-2 rounded-full font-body text-sm font-semibold whitespace-nowrap transition-all ${activeQuickFilter === filter.value
-                    ? 'bg-teal text-white'
-                    : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
+                  ? 'bg-teal text-white'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:border-teal hover:text-teal'
                   }`}
               >
                 {filter.label}
@@ -426,7 +426,7 @@ const HomePage = () => {
           </div>
         </Container>
       ) : (
-        <MapViewPage filters={filters} events={events} />
+        <MapViewPage filters={filters} />
       )}
 
       {showFilterSidebar && (

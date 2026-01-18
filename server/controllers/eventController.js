@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Event from '../models/eventModel.js';
 import User from '../models/userModel.js';
 import OrganizerProfile from '../models/organizerProfileModel.js';

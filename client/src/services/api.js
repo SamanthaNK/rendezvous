@@ -89,4 +89,10 @@ export const uploadAPI = {
     deleteImages: (publicIds) => api.delete('/upload/images', { data: { publicIds } }),
 };
 
+// Map API
+export const mapAPI = {
+    getEventsInBounds: (params) => api.get('/map/events', { params }),
+    getEventsInRadius: (params) => api.get('/map/events/radius', { params }),
+};
+
 export default api;

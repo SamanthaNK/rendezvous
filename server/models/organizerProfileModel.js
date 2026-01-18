@@ -162,7 +162,6 @@ const organizerProfileSchema = new mongoose.Schema(
     }
 );
 
-organizerProfileSchema.index({ user: 1 });
 organizerProfileSchema.index({ isVerified: 1 });
 organizerProfileSchema.index({ 'metrics.averageRating': -1 });
 organizerProfileSchema.index({ 'metrics.followerCount': -1 });
