@@ -1,19 +1,21 @@
 import { Calendar, Music, Palette, Utensils, Laptop, Trophy, Briefcase, Heart, Film, BookOpen, Dumbbell, Wine } from 'lucide-react';
 import PropTypes from 'prop-types';
+import { CATEGORIES } from '../../utils/constants';
 
-const CATEGORIES = [
-    { id: 'Music & Concerts', label: 'Music & Concerts', icon: Music },
-    { id: 'Arts & Culture', label: 'Arts & Culture', icon: Palette },
-    { id: 'Food & Drink', label: 'Food & Drink', icon: Utensils },
-    { id: 'Technology', label: 'Technology', icon: Laptop },
-    { id: 'Sports & Fitness', label: 'Sports & Fitness', icon: Trophy },
-    { id: 'Business & Networking', label: 'Business & Networking', icon: Briefcase },
-    { id: 'Community & Charity', label: 'Community & Charity', icon: Heart },
-    { id: 'Entertainment', label: 'Entertainment', icon: Film },
-    { id: 'Education & Workshops', label: 'Education & Workshops', icon: BookOpen },
-    { id: 'Health & Wellness', label: 'Health & Wellness', icon: Dumbbell },
-    { id: 'Nightlife', label: 'Nightlife', icon: Wine },
-];
+const CATEGORY_ICONS = {
+    'Music & Concerts': Music,
+    'Arts & Culture': Palette,
+    'Food & Drink': Utensils,
+    'Technology': Laptop,
+    'Sports & Fitness': Trophy,
+    'Business & Networking': Briefcase,
+    'Community & Charity': Heart,
+    'Entertainment': Film,
+    'Education & Workshops': BookOpen,
+    'Health & Wellness': Dumbbell,
+    'Nightlife': Wine,
+    'Family & Kids': Calendar,
+};
 
 const InterestsStep = ({ selectedInterests, onInterestToggle }) => {
     return (
@@ -32,7 +34,7 @@ const InterestsStep = ({ selectedInterests, onInterestToggle }) => {
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
                 {CATEGORIES.map((category) => {
-                    const Icon = category.icon;
+                    const Icon = CATEGORY_ICONS[category.id] || Calendar;
                     const isSelected = selectedInterests.includes(category.id);
 
                     return (

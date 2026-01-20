@@ -1,4 +1,3 @@
-// client/src/pages/HomePage.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -8,10 +7,10 @@ import { eventsAPI } from '../services/api';
 import { setView, selectView } from '../store/viewSlice';
 import Container from '../layouts/Container';
 import Button from '../components/common/Button';
-import EventGrid from '../components/event/EventGrid';
+import EventCard from '../components/event/EventCard';
 import FilterSidebar from '../components/event/FilterSidebar';
 import MapViewPage from './MapViewPage';
-import FeedEmptyState from '../components/event/FeedEmptyState';
+import EmptyState from '../components/common/EmptyState';
 import { SkeletonCard } from '../components/common/Skeleton';
 
 const QUICK_FILTERS = [
@@ -392,13 +391,22 @@ const HomePage = () => {
                   ))}
                 </div>
               ) : events.length === 0 ? (
-                <FeedEmptyState
-                  isColdStart={showForYou && isColdStart}
+                <EmptyState
+                  variant={showForYou && isColdStart ? 'cold-start' : 'default'}
                   userName={currentUser?.name?.split(' ')[0]}
+                  onAction={() => navigate('/')}
                 />
               ) : (
                 <>
-                  <EventGrid events={events} loading={false} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {events.map((event) => (
+                      <EventCard
+                        key={event._id}
+                        event={event}
+                        showExplanation={showForYou}
+                      />
+                    ))}
+                  </div>
 
                   {!loading && events.length > 0 && hasMore && (
                     <div className="mt-12 text-center">

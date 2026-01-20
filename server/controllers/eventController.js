@@ -6,19 +6,18 @@ import { deleteMultipleImages } from '../services/cloudinaryService.js';
 import { generateEventEmbedding, findSimilarEvents } from '../services/aiService.js';
 import { getPersonalizedFeed } from '../services/recommendationService.js';
 
-// In-memory cache for feed recommendations
+// Cache for personalized feeds
 const feedCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Clear expired cache entries periodically
-setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of feedCache.entries()) {
-        if (now - value.timestamp > CACHE_TTL) {
-            feedCache.delete(key);
-        }
-    }
-}, 60 * 1000); // Clean every minute
+const getFeedCache = (key) => {
+  const cached = feedCache.get(key);
+  if (!cached || Date.now() - cached.timestamp > CACHE_TTL) {
+    feedCache.delete(key);
+    return null;
+  }
+  return cached.data;
+};
 
 // Get all events with filtering and pagination
 export const getAllEvents = async (req, res) => {
@@ -901,7 +900,7 @@ const getFollowedOrganizerEvents = async (userId, limit = 5) => {
     }
 };
 
-// Mix different event sources intelligently
+// Mix different event sources
 const mixFeedEvents = (recommended, followed, trending) => {
     const mixed = [];
     const seenIds = new Set();

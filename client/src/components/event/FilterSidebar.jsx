@@ -2,34 +2,8 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { X, Calendar, MapPin, Banknote, Tag } from 'lucide-react';
 import Button from '../common/Button';
-
-const CATEGORIES = [
-  'Music & Concerts',
-  'Arts & Culture',
-  'Sports & Fitness',
-  'Food & Drink',
-  'Business & Networking',
-  'Technology',
-  'Health & Wellness',
-  'Community & Charity',
-  'Entertainment',
-  'Education & Workshops',
-  'Family & Kids',
-  'Nightlife',
-];
-
-const CITIES = [
-  'Douala',
-  'Yaounde',
-  'Garoua',
-  'Bamenda',
-  'Bafoussam',
-  'Maroua',
-  'Ngaoundéré',
-  'Bertoua',
-  'Limbe',
-  'Buea',
-];
+import { CATEGORIES, CITIES } from '../../utils/constants';
+import { dateRangeToParams } from '../../utils/dateHelpers';
 
 const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onClose }) => {
   const [localFilters, setLocalFilters] = useState(filters);
@@ -44,47 +18,12 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
   };
 
   const handleDateChange = (dateFilter) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let dateFrom = '';
-    let dateTo = '';
-
-    switch (dateFilter) {
-      case 'today':
-        dateFrom = today.toISOString().split('T')[0];
-        dateTo = today.toISOString().split('T')[0];
-        break;
-      case 'weekend': {
-        const dayOfWeek = today.getDay();
-        const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
-        const saturday = new Date(today);
-        saturday.setDate(today.getDate() + daysToSaturday);
-        const sunday = new Date(saturday);
-        sunday.setDate(saturday.getDate() + 1);
-        dateFrom = saturday.toISOString().split('T')[0];
-        dateTo = sunday.toISOString().split('T')[0];
-        break;
-      }
-      case 'week':
-        dateFrom = today.toISOString().split('T')[0];
-        const nextWeek = new Date(today);
-        nextWeek.setDate(today.getDate() + 7);
-        dateTo = nextWeek.toISOString().split('T')[0];
-        break;
-      case 'month':
-        dateFrom = today.toISOString().split('T')[0];
-        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        dateTo = lastDayOfMonth.toISOString().split('T')[0];
-        break;
-      default:
-        break;
-    }
+    const params = dateRangeToParams(dateFilter);
 
     setLocalFilters({
       ...localFilters,
-      dateFrom,
-      dateTo,
+      dateFrom: params.dateFrom || '',
+      dateTo: params.dateTo || '',
       dateFilter,
     });
   };
@@ -145,7 +84,6 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
       onClose();
     }
   };
-
   return (
     <div className={`bg-white rounded-xl border border-gray-200 ${isMobile ? 'p-6' : 'p-5'}`}>
       <div className="flex items-center justify-between mb-6">
@@ -160,7 +98,6 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
           </button>
         )}
       </div>
-
       <div className="space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -173,8 +110,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
                 key={option}
                 onClick={() => handleDateChange(option)}
                 className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.dateFilter === option
-                  ? 'bg-teal/10 text-teal font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {option === 'today' && 'Today'}
@@ -197,8 +134,8 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
                 key={option}
                 onClick={() => handlePriceChange(option)}
                 className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.priceFilter === option
-                  ? 'bg-teal/10 text-teal font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {option === 'free' && 'Free'}
@@ -218,14 +155,14 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {CITIES.map((city) => (
               <button
-                key={city}
-                onClick={() => handleCityChange(city)}
-                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.city === city
-                  ? 'bg-teal/10 text-teal font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
+                key={city.id}
+                onClick={() => handleCityChange(city.id)}
+                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.city === city.id
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
-                {city}
+                {city.label}
               </button>
             ))}
           </div>
@@ -239,14 +176,14 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {CATEGORIES.map((category) => (
               <button
-                key={category}
-                onClick={() => handleCategoryToggle(category)}
-                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.category === category
-                  ? 'bg-teal/10 text-teal font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
+                key={category.id}
+                onClick={() => handleCategoryToggle(category.id)}
+                className={`w-full px-3 py-2 text-left rounded-md font-body text-sm transition-colors ${localFilters.category === category.id
+                    ? 'bg-teal/10 text-teal font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
-                {category}
+                {category.label}
               </button>
             ))}
           </div>
@@ -261,10 +198,9 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, isMobile, onCl
           Clear All
         </Button>
       </div>
-    </div>
+    </div >
   );
 };
-
 FilterSidebar.propTypes = {
   filters: PropTypes.object.isRequired,
   onFilterChange: PropTypes.func.isRequired,
@@ -272,5 +208,4 @@ FilterSidebar.propTypes = {
   isMobile: PropTypes.bool,
   onClose: PropTypes.func,
 };
-
 export default FilterSidebar;

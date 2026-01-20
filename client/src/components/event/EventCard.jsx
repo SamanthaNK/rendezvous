@@ -1,24 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
-import { Calendar, MapPin, Heart, Banknote, Bookmark } from 'lucide-react';
+import { Calendar, MapPin, Heart, Bookmark, Sparkles, X } from 'lucide-react';
 import { Image as ImageIcon } from 'lucide-react';
 import { selectIsAuthenticated } from '../../store/authSlice';
 import { eventsAPI } from '../../services/api';
-import { formatDate, isToday } from '../../utils/dateHelpers';
+import { getRelativeDate } from '../../utils/dateHelpers';
 
-const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
+const EventCard = ({
+  event,
+  onSaveToggle,
+  onInterestedToggle,
+  showExplanation = false,
+  onNotInterested = null
+}) => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
+
   const [isSaved, setIsSaved] = useState(event.isSaved || false);
   const [isInterested, setIsInterested] = useState(event.isInterested || false);
   const [interestedCount, setInterestedCount] = useState(event.metrics?.interested || 0);
   const [actionLoading, setActionLoading] = useState(false);
-
-  const isTonightEvent = isToday(event.date);
-
- const formattedDate = formatDate(event.date, 'short');
+  const [isHidden, setIsHidden] = useState(false);
 
   const handleCardClick = () => {
     navigate(`/events/${event._id}`);
@@ -86,11 +90,35 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
     }
   };
 
+  const handleNotInterested = (e) => {
+    e.stopPropagation();
+    setIsHidden(true);
+    if (onNotInterested) {
+      onNotInterested(event._id);
+    }
+  };
+
+  if (isHidden) {
+    return null;
+  }
+
+  const relativeDate = getRelativeDate(event.date);
+
   return (
     <div
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:-translate-y-1 hover:shadow-card-hover transition-all duration-300 ease-out cursor-pointer flex flex-col"
+      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:-translate-y-1 hover:shadow-card-hover transition-all duration-300 ease-out cursor-pointer flex flex-col relative"
       onClick={handleCardClick}
     >
+      {onNotInterested && (
+        <button
+          onClick={handleNotInterested}
+          className="absolute top-3 left-3 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg"
+          aria-label="Not interested"
+        >
+          <X className="w-4 h-4 text-gray-600" />
+        </button>
+      )}
+
       <div className="relative h-[180px] overflow-hidden bg-gray-100 flex-shrink-0">
         {event.images?.[0] ? (
           <img
@@ -104,15 +132,11 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
             <ImageIcon className="w-16 h-16 text-gray-400" />
           </div>
         )}
-        {isTonightEvent && (
-          <span className="absolute top-3 left-3 px-3 py-1 bg-lime-cream/90 text-ink-black text-xs font-semibold rounded-full backdrop-blur-sm">
-            Tonight
-          </span>
-        )}
+
         <button
           onClick={handleSaveClick}
           disabled={actionLoading}
-          className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 disabled:opacity-50"
+          className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 disabled:opacity-50 shadow-lg"
           aria-label={isSaved ? 'Remove from saved' : 'Save event'}
         >
           <Bookmark
@@ -123,6 +147,15 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
       </div>
 
       <div className="p-4 flex flex-col flex-1">
+        {showExplanation && event.explanation && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-1.5 bg-teal/5 rounded-md">
+            <Sparkles className="w-3.5 h-3.5 text-teal flex-shrink-0" />
+            <span className="font-body text-xs text-teal font-medium truncate">
+              {event.explanation}
+            </span>
+          </div>
+        )}
+
         <span className="inline-block px-3 py-1 bg-dark-amaranth/10 text-dark-amaranth text-xs font-semibold rounded-full mb-3 self-start">
           {event.categories?.[0] || 'Event'}
         </span>
@@ -131,11 +164,11 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
           {event.title}
         </h3>
 
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="space-y-2 mb-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-teal flex-shrink-0" />
-            <span className="font-body text-sm text-gray-600 truncate">
-              {formattedDate}
+            <span className="font-body text-sm text-gray-600">
+              {relativeDate}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -144,53 +177,24 @@ const EventCard = ({ event, onSaveToggle, onInterestedToggle }) => {
               {event.location?.city || 'Location TBA'}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <Banknote className="w-4 h-4 text-teal flex-shrink-0" />
-            <span className="font-body text-sm text-gray-600 truncate">
-              {event.isFree ? 'Free' : `${event.price} FCFA`}
-            </span>
-          </div>
+        </div>
+
+        <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+          <span className="font-body text-sm font-semibold text-ink-black">
+            {event.isFree ? 'Free' : `${event.price} FCFA`}
+          </span>
+
           <button
             onClick={handleInterestedClick}
             disabled={actionLoading}
-            className="flex items-center gap-2 hover:text-lime-cream transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity disabled:opacity-50"
           >
             <Heart
               className={`w-4 h-4 flex-shrink-0 transition-colors ${isInterested ? 'fill-lime-cream text-lime-cream' : 'text-gray-600'
                 }`}
             />
-            <span className="font-body text-sm text-gray-600">
-              {interestedCount}
-            </span>
+            <span className="font-body text-sm text-gray-600">{interestedCount}</span>
           </button>
-        </div>
-
-        <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-body text-sm text-gray-600 truncate">
-              {event.organizer?.name || 'Organizer'}
-            </span>
-            {event.organizer?.isVerified && (
-              <div
-                className="w-4 h-4 bg-teal rounded-full flex items-center justify-center flex-shrink-0"
-                title="Verified Organizer"
-              >
-                <svg
-                  className="w-3 h-3 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -212,15 +216,14 @@ EventCard.propTypes = {
     metrics: PropTypes.shape({
       interested: PropTypes.number,
     }),
-    organizer: PropTypes.shape({
-      name: PropTypes.string,
-      isVerified: PropTypes.bool,
-    }),
     isSaved: PropTypes.bool,
     isInterested: PropTypes.bool,
+    explanation: PropTypes.string,
   }).isRequired,
   onSaveToggle: PropTypes.func,
   onInterestedToggle: PropTypes.func,
+  showExplanation: PropTypes.bool,
+  onNotInterested: PropTypes.func,
 };
 
 export default EventCard;

@@ -1,28 +1,13 @@
 import { useState } from 'react';
 import { MapPin, Search } from 'lucide-react';
 import PropTypes from 'prop-types';
-
-const CAMEROON_CITIES = [
-    { name: 'Douala', region: 'Littoral' },
-    { name: 'Yaoundé', region: 'Centre' },
-    { name: 'Garoua', region: 'North' },
-    { name: 'Bamenda', region: 'North-West' },
-    { name: 'Bafoussam', region: 'West' },
-    { name: 'Maroua', region: 'Far-North' },
-    { name: 'Ngaoundéré', region: 'Adamawa' },
-    { name: 'Bertoua', region: 'East' },
-    { name: 'Limbe', region: 'South-West' },
-    { name: 'Buea', region: 'South-West' },
-    { name: 'Kumba', region: 'South-West' },
-    { name: 'Ebolowa', region: 'South' },
-    { name: 'Kribi', region: 'South' },
-];
+import { CITIES } from '../../utils/constants';
 
 const LocationStep = ({ city, onCityChange }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
-    const filteredCities = CAMEROON_CITIES.filter((c) =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    const filteredCities = CITIES.filter((c) =>
+        c.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -56,22 +41,22 @@ const LocationStep = ({ city, onCityChange }) => {
                 {filteredCities.length > 0 ? (
                     filteredCities.map((c) => (
                         <button
-                            key={c.name}
+                            key={c.id}
                             type="button"
-                            onClick={() => onCityChange(c.name)}
+                            onClick={() => onCityChange(c.id)}
                             className={`
                 w-full px-6 py-4 flex items-center gap-4 text-left transition-colors
-                ${city === c.name ? 'bg-teal/5 border-l-4 border-teal' : 'hover:bg-gray-50 border-b border-gray-100'}
+                ${city === c.id ? 'bg-teal/5 border-l-4 border-teal' : 'hover:bg-gray-50 border-b border-gray-100'}
               `}
                         >
-                            <MapPin className={`w-5 h-5 flex-shrink-0 ${city === c.name ? 'text-teal' : 'text-gray-400'}`} />
+                            <MapPin className={`w-5 h-5 flex-shrink-0 ${city === c.id ? 'text-teal' : 'text-gray-400'}`} />
                             <div>
-                                <p className={`font-body text-base font-medium ${city === c.name ? 'text-teal' : 'text-ink-black'}`}>
-                                    {c.name}
+                                <p className={`font-body text-base font-medium ${city === c.id ? 'text-teal' : 'text-ink-black'}`}>
+                                    {c.label}
                                 </p>
                                 <p className="font-body text-sm text-gray-500">{c.region}</p>
                             </div>
-                            {city === c.name && (
+                            {city === c.id && (
                                 <div className="ml-auto w-6 h-6 bg-teal rounded-full flex items-center justify-center">
                                     <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -86,14 +71,6 @@ const LocationStep = ({ city, onCityChange }) => {
                     </div>
                 )}
             </div>
-
-            <button
-                type="button"
-                className="mt-6 w-full py-4 px-6 border-2 border-dashed border-gray-300 rounded-xl font-body text-base text-gray-600 hover:border-teal hover:text-teal hover:bg-teal/5 transition-all duration-200 flex items-center justify-center gap-2"
-            >
-                <MapPin className="w-5 h-5" />
-                Use my current location
-            </button>
         </div>
     );
 };

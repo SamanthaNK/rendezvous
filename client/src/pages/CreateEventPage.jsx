@@ -10,34 +10,7 @@ import ImageUpload from '../components/event/ImageUpload';
 import Modal from '../components/common/Modal';
 import Spinner from '../components/common/Spinner';
 import { eventsAPI, uploadAPI } from '../services/api';
-
-const CATEGORIES = [
-  { label: 'Music & Concerts', value: 'Music & Concerts' },
-  { label: 'Arts & Culture', value: 'Arts & Culture' },
-  { label: 'Sports & Fitness', value: 'Sports & Fitness' },
-  { label: 'Food & Drink', value: 'Food & Drink' },
-  { label: 'Business & Networking', value: 'Business & Networking' },
-  { label: 'Technology', value: 'Technology' },
-  { label: 'Health & Wellness', value: 'Health & Wellness' },
-  { label: 'Community & Charity', value: 'Community & Charity' },
-  { label: 'Entertainment', value: 'Entertainment' },
-  { label: 'Education & Workshops', value: 'Education & Workshops' },
-  { label: 'Family & Kids', value: 'Family & Kids' },
-  { label: 'Nightlife', value: 'Nightlife' },
-];
-
-const CITIES = [
-  { label: 'Yaoundé', value: 'Yaoundé' },
-  { label: 'Douala', value: 'Douala' },
-  { label: 'Buea', value: 'Buea' },
-  { label: 'Bamenda', value: 'Bamenda' },
-  { label: 'Bafoussam', value: 'Bafoussam' },
-  { label: 'Limbe', value: 'Limbe' },
-  { label: 'Garoua', value: 'Garoua' },
-  { label: 'Maroua', value: 'Maroua' },
-  { label: 'Ngaoundéré', value: 'Ngaoundéré' },
-  { label: 'Bertoua', value: 'Bertoua' },
-];
+import { getCategoryOptions, getCityOptions } from '../utils/constants';
 
 const CreateEventPage = () => {
   const navigate = useNavigate();
@@ -293,7 +266,7 @@ const CreateEventPage = () => {
 
                 <Select
                   label="Categories"
-                  options={CATEGORIES}
+                  options={getCategoryOptions()}
                   value={selectedCategories}
                   onChange={setSelectedCategories}
                   placeholder="Select categories"
@@ -352,7 +325,7 @@ const CreateEventPage = () => {
 
                 <Select
                   label="City"
-                  options={CITIES}
+                  options={getCityOptions()}
                   value={cityValue}
                   onChange={(value) => setValue('city', value)}
                   required

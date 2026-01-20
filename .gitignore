@@ -30,6 +30,17 @@ build/
 *.sln
 *.sw?
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
 # Testing
 coverage/
 .nyc_output/
@@ -55,6 +66,10 @@ Thumbs.db
 server/uploads/*
 !server/uploads/.gitkeep
 
+# Scripts (one-time migrations and testing)
+server/scripts/*.js
+
 # Cache
 .eslintcache
 .cache/
+

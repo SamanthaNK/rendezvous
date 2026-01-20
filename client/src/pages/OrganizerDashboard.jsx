@@ -70,8 +70,6 @@ const OrganizerDashboard = () => {
         }
     };
 
-    const formattedDate = formatDate(event.date, 'long');
-
     const getStatusBadge = (event) => {
         if (event.isDraft) {
             return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full">Draft</span>;
@@ -248,7 +246,7 @@ const OrganizerDashboard = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <p className="font-body text-sm text-gray-700">
-                                                    {formattedDate}
+                                                    {formatDate(event.date, 'short')}
                                                 </p>
                                             </td>
                                             <td className="px-6 py-4">
