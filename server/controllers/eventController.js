@@ -5,18 +5,19 @@ import OrganizerProfile from '../models/organizerProfileModel.js';
 import { deleteMultipleImages } from '../services/cloudinaryService.js';
 import { generateEventEmbedding, findSimilarEvents } from '../services/aiService.js';
 import { getPersonalizedFeed } from '../services/recommendationService.js';
+import { detectEventFraud } from '../utils/fraudDetection.js';
 
 // Cache for personalized feeds
 const feedCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const getFeedCache = (key) => {
-  const cached = feedCache.get(key);
-  if (!cached || Date.now() - cached.timestamp > CACHE_TTL) {
-    feedCache.delete(key);
-    return null;
-  }
-  return cached.data;
+    const cached = feedCache.get(key);
+    if (!cached || Date.now() - cached.timestamp > CACHE_TTL) {
+        feedCache.delete(key);
+        return null;
+    }
+    return cached.data;
 };
 
 // Get all events with filtering and pagination
@@ -333,7 +334,7 @@ export const getNearbyEvents = async (req, res) => {
     }
 };
 
-// Create new event with embedding generation
+// Create new event with embedding generation and fraud detection
 export const createEvent = async (req, res) => {
     try {
         const eventData = {
@@ -346,6 +347,22 @@ export const createEvent = async (req, res) => {
 
         if (eventData.status === 'published') {
             eventData.publishedAt = new Date();
+        }
+
+        // Run fraud detection on published events
+        if (eventData.status === 'published') {
+            console.log(`[Event Create] Running fraud detection for event: "${eventData.title}"`);
+
+            const fraudResult = await detectEventFraud(eventData);
+
+            if (fraudResult.isFlagged) {
+                eventData.isFlagged = true;
+                eventData.flagReason = fraudResult.flagReason;
+                eventData.flagConfidenceScore = fraudResult.confidenceScore;
+
+                console.log(`[Event Create] Event flagged for review - Score: ${fraudResult.confidenceScore}`);
+                console.log(`[Event Create] Reasons: ${fraudResult.flagReasons.join(', ')}`);
+            }
         }
 
         const event = await Event.create(eventData);
@@ -371,7 +388,9 @@ export const createEvent = async (req, res) => {
             data: { event },
             message: eventData.isDraft
                 ? 'Event saved as draft'
-                : 'Event created and published successfully',
+                : event.isFlagged
+                    ? 'Event created and flagged for review'
+                    : 'Event created and published successfully',
         });
     } catch (error) {
         console.error('Create event error:', error);
@@ -421,6 +440,26 @@ export const updateEvent = async (req, res) => {
             updateData.status = 'published';
             updateData.publishedAt = new Date();
             updateData.isDraft = false;
+
+            // Run fraud detection when publishing from draft
+            console.log(`[Event Update] Running fraud detection for newly published event: ${id}`);
+
+            const fullEventData = {
+                ...event,
+                ...updateData,
+                organizer: event.organizer,
+            };
+
+            const fraudResult = await detectEventFraud(fullEventData);
+
+            if (fraudResult.isFlagged) {
+                updateData.isFlagged = true;
+                updateData.flagReason = fraudResult.flagReason;
+                updateData.flagConfidenceScore = fraudResult.confidenceScore;
+
+                console.log(`[Event Update] Event flagged for review - Score: ${fraudResult.confidenceScore}`);
+                console.log(`[Event Update] Reasons: ${fraudResult.flagReasons.join(', ')}`);
+            }
         }
 
         const contentChanged =
@@ -905,7 +944,7 @@ const mixFeedEvents = (recommended, followed, trending) => {
     const mixed = [];
     const seenIds = new Set();
 
-    // Add followed organizer events first (highest priority)
+    // Add followed organizer events first
     for (const event of followed) {
         const eventId = event._id.toString();
         if (!seenIds.has(eventId)) {
@@ -1051,7 +1090,7 @@ export const getEventFeed = async (req, res) => {
             });
         }
 
-        // For subsequent pages, use pure recommendations
+        // Pure recommendations for rest of the pages
         console.log(`[Feed] Fetching recommendations for page ${page}`);
 
         const recommendedResult = await getPersonalizedFeed(
@@ -1120,7 +1159,7 @@ export const getEventFeed = async (req, res) => {
     }
 };
 
-// Clear user's feed cache (useful after user updates interests)
+// Clear user's feed cache
 export const clearUserFeedCache = (userId) => {
     const userIdStr = userId.toString();
     for (const key of feedCache.keys()) {
