@@ -70,8 +70,19 @@ export const eventsAPI = {
 
     getSaved: (params) => api.get('/events/user/saved', { params }),
     getInterested: (params) => api.get('/events/user/interested', { params }),
+};
 
-    getMyEvents: (params) => api.get('/events/organizer/my-events', { params }),
+// Organizer API
+export const organizerAPI = {
+    getDashboard: () => api.get('/organizer/dashboard'),
+    getProfile: () => api.get('/organizer/profile'),
+    updateProfile: (profileData) => api.put('/organizer/profile', profileData),
+    requestVerification: (verificationData) => api.post('/organizer/verification/request', verificationData),
+    getVerificationStatus: () => api.get('/organizer/verification/status'),
+    getEvents: (params) => api.get('/organizer/events', { params }),
+    getEventAnalytics: (eventId) => api.get(`/organizer/analytics/${eventId}`),
+    getPerformanceMetrics: () => api.get('/organizer/performance'),
+    getFollowerStats: () => api.get('/organizer/followers'),
 };
 
 // Search API

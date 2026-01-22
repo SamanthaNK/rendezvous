@@ -5,6 +5,7 @@ import RootLayout from './layouts/RootLayout';
 import HomePage from './pages/HomePage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import CreateEventPage from './pages/CreateEventPage';
+import EditEventPage from './pages/EditEventPage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import SavedEventsPage from './pages/SavedEventsPage';
 import LoginPage from './pages/LoginPage';
@@ -16,6 +17,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import RoleRoute from './components/routing/RoleRoute';
 import OrganizerDashboard from './pages/OrganizerDashboard';
+import EventAnalyticsPage from './pages/EventAnalyticsPage';
 
 window.__REDUX_STORE__ = store;
 
@@ -29,6 +31,7 @@ const App = () => {
             <Route path="events/:id" element={<EventDetailsPage />} />
             <Route path="search" element={<SearchResultsPage />} />
 
+            {/* Organizer Routes */}
             <Route
               path="events/create"
               element={
@@ -38,6 +41,34 @@ const App = () => {
               }
             />
 
+            <Route
+              path="events/:id/edit"
+              element={
+                <RoleRoute allowedRoles={['organizer', 'admin']}>
+                  <EditEventPage />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="organizer/dashboard"
+              element={
+                <RoleRoute allowedRoles={['organizer', 'admin']}>
+                  <OrganizerDashboard />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="organizer/analytics/:eventId"
+              element={
+                <RoleRoute allowedRoles={['organizer', 'admin']}>
+                  <EventAnalyticsPage />
+                </RoleRoute>
+              }
+            />
+
+            {/* User Routes */}
             <Route
               path="profile"
               element={
@@ -65,15 +96,7 @@ const App = () => {
               }
             />
 
-            <Route
-              path="organizer/dashboard"
-              element={
-                <RoleRoute allowedRoles={['organizer', 'admin']}>
-                  <OrganizerDashboard />
-                </RoleRoute>
-              }
-            />
-
+            {/* Admin Routes */}
             <Route
               path="admin/dashboard"
               element={

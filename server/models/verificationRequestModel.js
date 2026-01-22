@@ -129,7 +129,6 @@ const verificationRequestSchema = new mongoose.Schema(
     }
 );
 
-verificationRequestSchema.index({ organizer: 1 });
 verificationRequestSchema.index({ status: 1, createdAt: -1 });
 verificationRequestSchema.index({ reviewedBy: 1 });
 verificationRequestSchema.index({ status: 1 });
