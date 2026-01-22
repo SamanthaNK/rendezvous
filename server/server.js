@@ -9,6 +9,7 @@ import eventRoutes from './routes/eventRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import mapRoutes from './routes/mapRoutes.js';
+import organizerRoutes from './routes/organizerRoutes.js';
 import './models/reviewModel.js';
 
 dotenv.config();
@@ -54,16 +55,15 @@ app.use('/api/events', eventRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/map', mapRoutes);
+app.use('/api/organizer', organizerRoutes);
 
 // API Routes - Placeholders
 // import userRoutes from './routes/userRoutes.js';
-// import organizerRoutes from './routes/organizerRoutes.js';
 // import adminRoutes from './routes/adminRoutes.js';
 // import reviewRoutes from './routes/reviewRoutes.js';
 // import reportRoutes from './routes/reportRoutes.js';
 
 // app.use('/api/users', userRoutes);
-// app.use('/api/organizer', organizerRoutes);
 // app.use('/api/admin', adminRoutes);
 // app.use('/api/reviews', reviewRoutes);
 // app.use('/api/reports', reportRoutes);

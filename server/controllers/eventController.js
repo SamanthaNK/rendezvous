@@ -800,49 +800,6 @@ export const getInterestedEvents = async (req, res) => {
     }
 };
 
-// Get organizer's events
-export const getMyEvents = async (req, res) => {
-    try {
-        const { status, page = 1, limit = 20 } = req.query;
-
-        const filters = { organizer: req.user._id };
-
-        if (status) {
-            filters.status = status;
-        }
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-
-        const events = await Event.find(filters)
-            .select('title categories date status isDraft metrics images')
-            .sort('-createdAt')
-            .limit(parseInt(limit))
-            .skip(skip)
-            .lean();
-
-        const total = await Event.countDocuments(filters);
-
-        res.json({
-            success: true,
-            data: {
-                events,
-                pagination: {
-                    currentPage: parseInt(page),
-                    totalPages: Math.ceil(total / parseInt(limit)),
-                    totalEvents: total,
-                },
-            },
-        });
-    } catch (error) {
-        console.error('Get my events error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch your events',
-            error: error.message,
-        });
-    }
-};
-
 // Get trending events based on engagement
 const getTrendingEvents = async (userId, limit = 5) => {
     try {

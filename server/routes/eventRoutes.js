@@ -13,7 +13,6 @@ import {
     unmarkInterested,
     getSavedEvents,
     getInterestedEvents,
-    getMyEvents,
     getEventFeed,
 } from '../controllers/eventController.js';
 import { authenticate, optionalAuth } from '../middleware/authMiddleware.js';
@@ -36,7 +35,6 @@ router.post('/:id/interest', authenticate, markInterested);
 router.delete('/:id/interest', authenticate, unmarkInterested);
 
 // Organizer
-router.get('/organizer/my-events', authenticate, requireOrganizer, getMyEvents);
 router.post('/', authenticate, requireOrganizer, createEvent);
 router.put('/:id', authenticate, requireOrganizer, updateEvent);
 router.delete('/:id', authenticate, requireOrganizer, deleteEvent);
