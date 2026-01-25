@@ -1,3 +1,14 @@
+// Reviews API
+export const reviewsAPI = {
+    create: (data) => api.post('/reviews', data),
+    getByEvent: (eventId) => api.get(`/reviews/event/${eventId}`),
+};
+// User API (Follow/Unfollow Organizer)
+export const userAPI = {
+    followOrganizer: (organizerId) => api.post(`/users/follow/${organizerId}`),
+    unfollowOrganizer: (organizerId) => api.delete(`/users/follow/${organizerId}`),
+    getFollowedOrganizers: () => api.get('/users/followed-organizers'),
+};
 import axios from 'axios';
 import { store } from '../store/store';
 import { logout } from '../store/authSlice';

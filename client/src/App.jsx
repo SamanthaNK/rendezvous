@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import RootLayout from './layouts/RootLayout';
+import { adminRoutes } from './adminRoutes';
 import HomePage from './pages/HomePage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import CreateEventPage from './pages/CreateEventPage';
@@ -96,15 +97,11 @@ const App = () => {
               }
             />
 
-            {/* Admin Routes */}
-            <Route
-              path="admin/dashboard"
-              element={
-                <RoleRoute allowedRoles={['admin']}>
-                  <div className="min-h-screen pt-20">Admin Dashboard (Coming Soon)</div>
-                </RoleRoute>
-              }
-            />
+
+            {/* Admin Panel Routes */}
+            {adminRoutes.map((route) => (
+              <Route key={route.path} path={route.path.replace('/admin/', 'admin/')} element={route.element} />
+            ))}
 
             <Route
               path="*"

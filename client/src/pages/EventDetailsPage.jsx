@@ -16,8 +16,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Image as ImageIcon } from 'lucide-react';
-import { selectIsAuthenticated } from '../store/authSlice';
-import { eventsAPI } from '../services/api';
+import { selectIsAuthenticated, selectCurrentUser } from '../store/authSlice';
+import { eventsAPI, userAPI, reviewsAPI } from '../services/api';
+import ReviewForm from '../components/review/ReviewForm';
+import ReviewsList from '../components/review/ReviewsList';
+// ...existing imports...
 import Container from '../layouts/Container';
 import Button from '../components/common/Button';
 import EventCard from '../components/event/EventCard';
@@ -104,6 +107,36 @@ const EventDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const currentUser = useSelector(selectCurrentUser);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  useEffect(() => {
+    if (event && event.organizer?._id && currentUser && currentUser.followedOrganizers) {
+      setIsFollowing(currentUser.followedOrganizers.includes(event.organizer._id));
+    }
+  }, [event, currentUser]);
+  const handleFollowToggle = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!event?.organizer?._id) return;
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await userAPI.unfollowOrganizer(event.organizer._id);
+        setIsFollowing(false);
+      } else {
+        await userAPI.followOrganizer(event.organizer._id);
+        setIsFollowing(true);
+      }
+    } catch (err) {
+      // Optionally show error
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const [event, setEvent] = useState(null);
   const [similarEvents, setSimilarEvents] = useState([]);
@@ -229,7 +262,7 @@ const EventDetailsPage = () => {
     return null;
   }
 
-  return (
+  return  (
     <div className="pt-20">
       <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden bg-gray-100">
         {event.images?.[0] ? (
@@ -279,6 +312,15 @@ const EventDetailsPage = () => {
                     )}
                   </div>
                 </Link>
+                <Button
+                  variant={isFollowing ? 'secondary' : 'primary'}
+                  size="sm"
+                  className="ml-2"
+                  onClick={handleFollowToggle}
+                  disabled={followLoading}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Button>
               </div>
               <div>
                 <p className="font-body text-base text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -329,6 +371,22 @@ const EventDetailsPage = () => {
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* Reviews Section (only for past events) */}
+              {event.date && new Date(event.date) < new Date() && (
+                <>
+                  <div className="flex items-center justify-between mt-10 mb-2">
+                    <h3 className="font-heading text-xl font-bold text-ink-black">Event Reviews</h3>
+                    {isAuthenticated && (
+                      <Button variant="primary" size="sm" onClick={() => setReviewModalOpen(true)}>
+                        Leave a Review
+                      </Button>
+                    )}
+                  </div>
+                  <ReviewsList reviews={reviews} averageRating={averageRating} />
+                  <ReviewForm open={reviewModalOpen} onClose={() => setReviewModalOpen(false)} onSubmit={handleReviewSubmit} loading={reviewLoading} />
+                </>
               )}
             </div>
           </div>
