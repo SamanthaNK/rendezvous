@@ -12,7 +12,6 @@ import mapRoutes from './routes/mapRoutes.js';
 import organizerRoutes from './routes/organizerRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
-import './models/reviewModel.js';
 import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
@@ -61,17 +60,7 @@ app.use('/api/map', mapRoutes);
 app.use('/api/organizer', organizerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
-
-// API Routes - Placeholders
-// import userRoutes from './routes/userRoutes.js';
-// import adminRoutes from './routes/adminRoutes.js';
-// import reviewRoutes from './routes/reviewRoutes.js';
-// import reportRoutes from './routes/reportRoutes.js';
-
 app.use('/api/users', userRoutes);
-// app.use('/api/admin', adminRoutes);
-// app.use('/api/reviews', reviewRoutes);
-// app.use('/api/reports', reportRoutes);
 
 // 404 handler
 app.use((req, res) => {

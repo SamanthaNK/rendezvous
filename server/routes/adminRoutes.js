@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middleware/authMiddleware.js';
-import { checkAdminRole } from '../middleware/roleCheck.js';
+import { requireAdmin } from '../middleware/roleCheck.js';
 import {
   getDashboard,
   getFlaggedEvents,
@@ -16,7 +16,8 @@ import {
 
 const router = express.Router();
 
-router.use(authenticate, checkAdminRole);
+// All routes require authentication and admin role
+router.use(authenticate, requireAdmin);
 
 router.get('/dashboard', getDashboard);
 router.get('/events/flagged', getFlaggedEvents);
