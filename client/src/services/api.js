@@ -1,14 +1,3 @@
-// Reviews API
-export const reviewsAPI = {
-    create: (data) => api.post('/reviews', data),
-    getByEvent: (eventId) => api.get(`/reviews/event/${eventId}`),
-};
-// User API (Follow/Unfollow Organizer)
-export const userAPI = {
-    followOrganizer: (organizerId) => api.post(`/users/follow/${organizerId}`),
-    unfollowOrganizer: (organizerId) => api.delete(`/users/follow/${organizerId}`),
-    getFollowedOrganizers: () => api.get('/users/followed-organizers'),
-};
 import axios from 'axios';
 import { store } from '../store/store';
 import { logout } from '../store/authSlice';
@@ -94,6 +83,43 @@ export const organizerAPI = {
     getEventAnalytics: (eventId) => api.get(`/organizer/analytics/${eventId}`),
     getPerformanceMetrics: () => api.get('/organizer/performance'),
     getFollowerStats: () => api.get('/organizer/followers'),
+};
+
+
+// Admin API
+export const adminAPI = {
+    getDashboard: () => api.get('/admin/dashboard'),
+
+    getFlaggedEvents: (params) => api.get('/admin/events/flagged', { params }),
+    moderateEvent: (eventId, action, reason) =>
+        api.post(`/admin/events/${eventId}/moderate`, { action, reason }),
+
+    getReports: (params) => api.get('/admin/reports', { params }),
+    resolveReport: (reportId, resolution) =>
+        api.post(`/admin/reports/${reportId}/resolve`, { resolution }),
+
+    getVerificationRequests: (params) => api.get('/admin/verification/requests', { params }),
+    approveVerification: (requestId, badge = 'verified') =>
+        api.post(`/admin/verification/${requestId}/approve`, { badge }),
+    rejectVerification: (requestId, reason, suggestions = '') =>
+        api.post(`/admin/verification/${requestId}/reject`, { reason, suggestions }),
+
+    banUser: (userId, reason, isPermanent = true) =>
+        api.post(`/admin/users/${userId}/ban`, { reason, isPermanent }),
+    unbanUser: (userId) =>
+        api.post(`/admin/users/${userId}/unban`),
+};
+
+// Reviews API
+export const reviewsAPI = {
+    create: (data) => api.post('/reviews', data),
+    getByEvent: (eventId) => api.get(`/reviews/event/${eventId}`),
+};
+// User API (Follow/Unfollow Organizer)
+export const userAPI = {
+    followOrganizer: (organizerId) => api.post(`/users/follow/${organizerId}`),
+    unfollowOrganizer: (organizerId) => api.delete(`/users/follow/${organizerId}`),
+    getFollowedOrganizers: () => api.get('/users/followed-organizers'),
 };
 
 // Search API

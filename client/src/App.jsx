@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import RootLayout from './layouts/RootLayout';
-import { adminRoutes } from './adminRoutes';
+import AdminLayout from './layouts/AdminLayout';
 import HomePage from './pages/HomePage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import CreateEventPage from './pages/CreateEventPage';
@@ -17,8 +17,13 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import RoleRoute from './components/routing/RoleRoute';
+import AdminRoute from './components/routing/AdminRoute';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import EventAnalyticsPage from './pages/EventAnalyticsPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminFlaggedEvents from './pages/admin/AdminFlaggedEvents';
+import AdminReports from './pages/admin/AdminReports';
+import AdminVerificationRequests from './pages/admin/AdminVerificationRequests';
 
 window.__REDUX_STORE__ = store;
 
@@ -32,7 +37,6 @@ const App = () => {
             <Route path="events/:id" element={<EventDetailsPage />} />
             <Route path="search" element={<SearchResultsPage />} />
 
-            {/* Organizer Routes */}
             <Route
               path="events/create"
               element={
@@ -69,7 +73,6 @@ const App = () => {
               }
             />
 
-            {/* User Routes */}
             <Route
               path="profile"
               element={
@@ -97,12 +100,6 @@ const App = () => {
               }
             />
 
-
-            {/* Admin Panel Routes */}
-            {adminRoutes.map((route) => (
-              <Route key={route.path} path={route.path.replace('/admin/', 'admin/')} element={route.element} />
-            ))}
-
             <Route
               path="*"
               element={
@@ -118,6 +115,17 @@ const App = () => {
                 </div>
               }
             />
+          </Route>
+
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="flagged-events" element={<AdminFlaggedEvents />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="verification-requests" element={<AdminVerificationRequests />} />
+            <Route path="users" element={<div className="p-8">Users (Coming Soon)</div>} />
+            <Route path="logs" element={<div className="p-8">Logs (Coming Soon)</div>} />
           </Route>
 
           <Route path="/login" element={<LoginPage />} />

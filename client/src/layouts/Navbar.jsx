@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Menu, X, User, Heart, LogOut, Clock, Calendar } from 'lucide-react';
+import { Search, Menu, X, User, Heart, LogOut, Clock, Calendar, Settings, LayoutGrid, Plus } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../store/authSlice';
 import { selectSearchHistory, addToHistory } from '../store/searchSlice';
 import { authAPI } from '../services/api';
