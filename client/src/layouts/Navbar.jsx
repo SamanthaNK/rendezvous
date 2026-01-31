@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Menu, X, User, Heart, LogOut, Clock, Calendar, Settings, LayoutGrid, Plus } from 'lucide-react';
+import { Search, Menu, X, Heart, LogOut, Clock, Calendar, BarChart3, Shield } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../store/authSlice';
 import { selectSearchHistory, addToHistory } from '../store/searchSlice';
 import { authAPI } from '../services/api';
@@ -107,12 +107,30 @@ const Navbar = () => {
                     </Link>
 
                     <div className="hidden md:flex items-center gap-8">
-                        <Link
-                            to="/"
-                            className="font-body text-base text-gray-700 hover:text-teal transition-colors"
-                        >
-                            Events
-                        </Link>
+                        {isAuthenticated && currentUser?.role === 'admin' && (
+                            <Link
+                                to="/admin/dashboard"
+                                className="font-body text-base text-gray-700 hover:text-teal transition-colors"
+                            >
+                                Admin Panel
+                            </Link>
+                        )}
+                        {(!isAuthenticated || currentUser?.role === 'user') && (
+                            <Link
+                                to="/"
+                                className="font-body text-base text-gray-700 hover:text-teal transition-colors"
+                            >
+                                Browse Events
+                            </Link>
+                        )}
+                        {isAuthenticated && currentUser?.role === 'organizer' && (
+                            <Link
+                                to="/organizer/dashboard"
+                                className="font-body text-base text-gray-700 hover:text-teal transition-colors"
+                            >
+                                My Events
+                            </Link>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -185,28 +203,56 @@ const Navbar = () => {
 
                                 {isUserMenuOpen && (
                                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 shadow-dropdown p-2 animate-dropdown-fade">
-                                        <Link
-                                            to="/saved"
-                                            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
-                                            onClick={() => setIsUserMenuOpen(false)}
-                                        >
-                                            <Heart className="w-4 h-4" />
-                                            <span>Saved Events</span>
-                                        </Link>
+                                        {currentUser?.role === 'user' && (
+                                            <>
+                                                <Link
+                                                    to="/saved"
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
+                                                    onClick={() => setIsUserMenuOpen(false)}
+                                                >
+                                                    <Heart className="w-4 h-4" />
+                                                    <span>Saved Events</span>
+                                                </Link>
+                                                <div className="h-px bg-gray-200 my-2" />
+                                            </>
+                                        )}
+
                                         {currentUser?.role === 'organizer' && (
                                             <>
-                                                <div className="h-px bg-gray-200 my-2" />
                                                 <Link
                                                     to="/organizer/dashboard"
                                                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
                                                     onClick={() => setIsUserMenuOpen(false)}
                                                 >
                                                     <Calendar className="w-4 h-4" />
-                                                    <span>Organizer Dashboard</span>
+                                                    <span>My Events</span>
                                                 </Link>
+                                                <Link
+                                                    to="/organizer/analytics"
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
+                                                    onClick={() => setIsUserMenuOpen(false)}
+                                                >
+                                                    <BarChart3 className="w-4 h-4" />
+                                                    <span>Analytics</span>
+                                                </Link>
+                                                <div className="h-px bg-gray-200 my-2" />
                                             </>
                                         )}
-                                        <div className="h-px bg-gray-200 my-2" />
+
+                                        {currentUser?.role === 'admin' && (
+                                            <>
+                                                <Link
+                                                    to="/admin/dashboard"
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink-black font-body hover:bg-gray-100 transition-colors"
+                                                    onClick={() => setIsUserMenuOpen(false)}
+                                                >
+                                                    <Shield className="w-4 h-4" />
+                                                    <span>Dashboard</span>
+                                                </Link>
+                                                <div className="h-px bg-gray-200 my-2" />
+                                            </>
+                                        )}
+
                                         <button
                                             onClick={handleLogout}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-error font-body hover:bg-error/5 transition-colors"
@@ -248,49 +294,15 @@ const Navbar = () => {
 
                 {isMobileMenuOpen && (
                     <div className="md:hidden mt-4 pt-4 border-t border-gray-200 space-y-2 animate-fade-in">
-                        <Link
-                            to="/"
-                            className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={closeMobileMenu}
-                        >
-                            Events
-                        </Link>
-                        <Link
-                            to="/search"
-                            className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                            onClick={closeMobileMenu}
-                        >
-                            Search Events
-                        </Link>
-
-                        {isAuthenticated ? (
+                        {!isAuthenticated && (
                             <>
-                                <div className="h-px bg-gray-200 my-2" />
                                 <Link
-                                    to="/saved"
+                                    to="/"
                                     className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
                                     onClick={closeMobileMenu}
                                 >
-                                    Saved Events
+                                    Browse Events
                                 </Link>
-                                {currentUser?.role === 'organizer' && (
-                                    <Link
-                                        to="/organizer/dashboard"
-                                        className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
-                                        onClick={closeMobileMenu}
-                                    >
-                                        Organizer Dashboard
-                                    </Link>
-                                )}
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full text-left px-4 py-2.5 rounded-md text-base font-body text-error hover:bg-error/5 transition-colors"
-                                >
-                                    Logout
-                                </button>
-                            </>
-                        ) : (
-                            <>
                                 <div className="h-px bg-gray-200 my-2" />
                                 <div className="space-y-2 px-4">
                                     <Button
@@ -314,6 +326,77 @@ const Navbar = () => {
                                         Login
                                     </Button>
                                 </div>
+                            </>
+                        )}
+
+                        {isAuthenticated && currentUser?.role === 'user' && (
+                            <>
+                                <Link
+                                    to="/"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={closeMobileMenu}
+                                >
+                                    Browse Events
+                                </Link>
+                                <Link
+                                    to="/saved"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={closeMobileMenu}
+                                >
+                                    Saved Events
+                                </Link>
+                                <div className="h-px bg-gray-200 my-2" />
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-2.5 rounded-md text-base font-body text-error hover:bg-error/5 transition-colors"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        )}
+
+                        {isAuthenticated && currentUser?.role === 'organizer' && (
+                            <>
+                                <Link
+                                    to="/organizer/dashboard"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={closeMobileMenu}
+                                >
+                                    My Events
+                                </Link>
+                                <Link
+                                    to="/organizer/analytics"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={closeMobileMenu}
+                                >
+                                    Analytics
+                                </Link>
+                                <div className="h-px bg-gray-200 my-2" />
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-2.5 rounded-md text-base font-body text-error hover:bg-error/5 transition-colors"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        )}
+
+                        {isAuthenticated && currentUser?.role === 'admin' && (
+                            <>
+                                <Link
+                                    to="/admin/dashboard"
+                                    className="block px-4 py-2.5 rounded-md text-base font-body text-gray-700 hover:bg-gray-100 hover:text-teal transition-colors"
+                                    onClick={closeMobileMenu}
+                                >
+                                    Dashboard
+                                </Link>
+                                <div className="h-px bg-gray-200 my-2" />
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-2.5 rounded-md text-base font-body text-error hover:bg-error/5 transition-colors"
+                                >
+                                    Logout
+                                </button>
                             </>
                         )}
                     </div>

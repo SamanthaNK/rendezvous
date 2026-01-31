@@ -104,7 +104,7 @@ const RegisterPage = () => {
         <>
             {step === 1 && (
                 <AuthLayout>
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-card p-8">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-card p-8 max-w-2xl">
                         <div className="mb-8 text-center">
                             <Link to="/" className="inline-flex items-center gap-2 mb-6">
                                 <div className="w-4 h-4 bg-lime-cream rounded-full" />
@@ -128,39 +128,23 @@ const RegisterPage = () => {
                                 <button
                                     type="button"
                                     onClick={() => setAccountType('user')}
-                                    className={`p-4 rounded-lg border-2 transition-all ${accountType === 'user'
-                                            ? 'border-teal bg-teal/5'
-                                            : 'border-gray-200 hover:border-teal'
+                                    className={`py-3 px-4 rounded-lg border-2 transition-all font-body text-sm font-medium ${accountType === 'user'
+                                        ? 'border-teal bg-teal/5 text-teal'
+                                        : 'border-gray-200 hover:border-teal text-gray-700'
                                         }`}
                                 >
-                                    <Calendar className={`w-6 h-6 mx-auto mb-2 ${accountType === 'user' ? 'text-teal' : 'text-gray-400'
-                                        }`} />
-                                    <p className={`font-body text-sm font-semibold ${accountType === 'user' ? 'text-teal' : 'text-gray-700'
-                                        }`}>
-                                        Discover Events
-                                    </p>
-                                    <p className="font-body text-xs text-gray-500 mt-1">
-                                        Find and attend events
-                                    </p>
+                                    Discover Events
                                 </button>
 
                                 <button
                                     type="button"
                                     onClick={() => setAccountType('organizer')}
-                                    className={`p-4 rounded-lg border-2 transition-all ${accountType === 'organizer'
-                                            ? 'border-teal bg-teal/5'
-                                            : 'border-gray-200 hover:border-teal'
+                                    className={`py-3 px-4 rounded-lg border-2 transition-all font-body text-sm font-medium ${accountType === 'organizer'
+                                        ? 'border-teal bg-teal/5 text-teal'
+                                        : 'border-gray-200 hover:border-teal text-gray-700'
                                         }`}
                                 >
-                                    <Briefcase className={`w-6 h-6 mx-auto mb-2 ${accountType === 'organizer' ? 'text-teal' : 'text-gray-400'
-                                        }`} />
-                                    <p className={`font-body text-sm font-semibold ${accountType === 'organizer' ? 'text-teal' : 'text-gray-700'
-                                        }`}>
-                                        Organize Events
-                                    </p>
-                                    <p className="font-body text-xs text-gray-500 mt-1">
-                                        Create and manage events
-                                    </p>
+                                    Organize Events
                                 </button>
                             </div>
                         </div>
