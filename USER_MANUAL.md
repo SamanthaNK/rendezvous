@@ -236,7 +236,7 @@ Welcome to **Rendezvous**, your gateway to discovering and organizing amazing ev
 
 ## Contact & Support
 
-- **Email**: samanthank38@gmail.com
+- **Email**: samanthank38@gmail.com, bpearlykay@gmail.com
 - **GitHub**: [Rendezvous Repository](https://github.com/SamanthaNK/rendezvous)
 - **Report Issues**: Use in-app reporting feature
 
