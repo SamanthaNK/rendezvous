@@ -108,13 +108,31 @@ const EventDetailsPage = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
+
+  // All state declarations first
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [event, setEvent] = useState(null);
+  const [similarEvents, setSimilarEvents] = useState([]);
+  const [similarTotal, setSimilarTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isInterested, setIsInterested] = useState(false);
+  const [interestedCount, setInterestedCount] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(0);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  // Effects and handlers after all state declarations
   useEffect(() => {
     if (event && event.organizer?._id && currentUser && currentUser.followedOrganizers) {
       setIsFollowing(currentUser.followedOrganizers.includes(event.organizer._id));
     }
   }, [event, currentUser]);
+
   const handleFollowToggle = async () => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -138,16 +156,6 @@ const EventDetailsPage = () => {
     }
   };
 
-  const [event, setEvent] = useState(null);
-  const [similarEvents, setSimilarEvents] = useState([]);
-  const [similarTotal, setSimilarTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
-  const [isInterested, setIsInterested] = useState(false);
-  const [interestedCount, setInterestedCount] = useState(0);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [shareSuccess, setShareSuccess] = useState(false);
-
   useEffect(() => {
     fetchEventDetails();
   }, [id]);
@@ -165,12 +173,25 @@ const EventDetailsPage = () => {
         setInterestedCount(eventData.metrics?.interested || 0);
 
         fetchSimilarEvents();
+        fetchReviews();
       }
     } catch (error) {
       console.error('Fetch event details error:', error);
       navigate('/');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const response = await reviewsAPI.getByEvent(id);
+      if (response.data.success) {
+        setReviews(response.data.data.reviews || []);
+        setAverageRating(response.data.data.averageRating || 0);
+      }
+    } catch (error) {
+      console.error('Fetch reviews error:', error);
     }
   };
 
@@ -248,6 +269,28 @@ const EventDetailsPage = () => {
     setTimeout(() => setShareSuccess(false), 2000);
   };
 
+  const handleReviewSubmit = async (rating, reviewText) => {
+    if (!isAuthenticated || !event) return;
+
+    try {
+      setReviewLoading(true);
+      const response = await reviewsAPI.create(event._id, {
+        rating,
+        comment: reviewText,
+      });
+
+      if (response.data.success) {
+        setReviews([response.data.data.review, ...reviews]);
+        setAverageRating(response.data.data.averageRating);
+        setReviewModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Submit review error:', error);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   const formattedDate = event ? formatDate(event.date, 'long') : '';
 
   if (loading) {
@@ -262,7 +305,7 @@ const EventDetailsPage = () => {
     return null;
   }
 
-  return  (
+  return (
     <div className="pt-20">
       <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden bg-gray-100">
         {event.images?.[0] ? (
@@ -483,22 +526,12 @@ const EventDetailsPage = () => {
         </div>
         {similarEvents.length > 0 && (
           <div className="mt-16 pt-16 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="font-heading text-3xl font-bold text-ink-black">
-                Similar Events
-              </h2>
-              {similarTotal > 5 && (
-                <Link
-                  to={`/events/${id}/similar`}
-                  className="font-body text-teal font-semibold hover:underline text-base"
-                >
-                  View All
-                </Link>
-              )}
-            </div>
+            <h2 className="font-heading text-3xl font-bold text-ink-black mb-8">
+              Similar Events
+            </h2>
             <div className="overflow-x-auto pb-2">
               <div className="flex gap-6 min-w-[600px]">
-                {similarEvents.slice(0, 5).map((similarEvent) => (
+                {similarEvents.map((similarEvent) => (
                   <div key={similarEvent._id} className="w-72 flex-shrink-0">
                     <EventCard event={similarEvent} />
                   </div>

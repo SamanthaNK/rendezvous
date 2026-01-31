@@ -17,6 +17,7 @@ const OrganizerDashboard = () => {
     const [activeTab, setActiveTab] = useState('upcoming');
     const [eventToDelete, setEventToDelete] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [publishLoading, setPublishLoading] = useState(null);
 
     useEffect(() => {
         fetchDashboard();
@@ -80,6 +81,20 @@ const OrganizerDashboard = () => {
             alert('Failed to delete event');
         } finally {
             setDeleteLoading(false);
+        }
+    };
+
+    const handlePublish = async (eventId) => {
+        try {
+            setPublishLoading(eventId);
+            await eventsAPI.update(eventId, { isDraft: false });
+            fetchEvents();
+            fetchDashboard();
+        } catch (error) {
+            console.error('Publish error:', error);
+            alert('Failed to publish event');
+        } finally {
+            setPublishLoading(null);
         }
     };
 
@@ -251,6 +266,15 @@ const OrganizerDashboard = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
+                                                        {event.isDraft && (
+                                                            <button
+                                                                onClick={() => handlePublish(event._id)}
+                                                                disabled={publishLoading === event._id}
+                                                                className="font-body text-sm text-success font-semibold hover:underline disabled:opacity-50"
+                                                            >
+                                                                {publishLoading === event._id ? 'Publishing...' : 'Publish'}
+                                                            </button>
+                                                        )}
                                                         <Link to={`/events/${event._id}`}>
                                                             <button className="font-body text-sm text-teal font-semibold hover:underline">View</button>
                                                         </Link>
@@ -294,6 +318,15 @@ const OrganizerDashboard = () => {
                                             <span><Heart className="w-3 h-3 inline mr-1" />{event.metrics?.interested || 0}</span>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
+                                            {event.isDraft && (
+                                                <button
+                                                    onClick={() => handlePublish(event._id)}
+                                                    disabled={publishLoading === event._id}
+                                                    className="px-3 py-1 bg-success/10 text-success text-xs font-semibold rounded-md disabled:opacity-50"
+                                                >
+                                                    {publishLoading === event._id ? 'Publishing...' : 'Publish'}
+                                                </button>
+                                            )}
                                             <Link to={`/events/${event._id}`}>
                                                 <button className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-md">View</button>
                                             </Link>
