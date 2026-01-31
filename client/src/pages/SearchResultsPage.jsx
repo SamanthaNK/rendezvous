@@ -67,16 +67,27 @@ const SearchResultsPage = () => {
             const response = await searchAPI.search(searchQuery, params);
 
             if (response.data.success) {
-                setEvents(response.data.data.events);
-                setParsedQuery(response.data.data.parsedQuery);
-                setUsedFallback(response.data.data.usedFallback);
-                setTotalPages(response.data.data.pagination.totalPages);
-                setCurrentPage(response.data.data.pagination.currentPage);
+                setEvents(response.data.data.events || []);
+                setParsedQuery(response.data.data.parsedQuery || null);
+                setUsedFallback(response.data.data.usedFallback || false);
+                setTotalPages(response.data.data.pagination?.totalPages || 1);
+                setCurrentPage(response.data.data.pagination?.currentPage || 1);
 
                 dispatch(addToHistory(searchQuery));
+            } else {
+                setEvents([]);
+                setParsedQuery(null);
+                setUsedFallback(false);
+                setTotalPages(1);
+                setCurrentPage(1);
             }
         } catch (error) {
             console.error('Search error:', error);
+            setEvents([]);
+            setParsedQuery(null);
+            setUsedFallback(false);
+            setTotalPages(1);
+            setCurrentPage(1);
             dispatch(setError(error.message));
         } finally {
             setLoadingState(false);
@@ -233,17 +244,45 @@ const SearchResultsPage = () => {
                             )}
 
                         {!loading && events.length === 0 ? (
-                            <div className="text-center py-16">
-                                <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <h3 className="font-heading text-2xl font-bold text-ink-black mb-2">
-                                    No Events Found
+                            <div className="flex flex-col items-center justify-center py-20 px-5">
+                                <div className="w-20 h-20 mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <Search className="w-10 h-10 text-gray-400" />
+                                </div>
+
+                                <h3 className="font-heading text-2xl font-bold text-ink-black mb-3 text-center">
+                                    No events found
                                 </h3>
-                                <p className="font-body text-base text-gray-600 mb-6">
-                                    Try adjusting your search query or filters
+
+                                <p className="font-body text-base text-gray-600 text-center max-w-md mb-8">
+                                    We couldn't find any events matching "{query}"
+                                    {parsedQuery?.location && ` in ${parsedQuery.location}`}
+                                    {parsedQuery?.category && ` under ${parsedQuery.category}`}
+                                    {parsedQuery?.budget?.isFree && ' that are free'}
+                                    {parsedQuery?.budget?.maxPrice && ` under ${parsedQuery.budget.maxPrice} FCFA`}
                                 </p>
-                                <Button variant="secondary" size="lg" onClick={() => navigate('/')}>
-                                    Browse All Events
-                                </Button>
+
+                                <div className="mb-8 space-y-3 text-center">
+                                    <p className="font-body text-sm font-medium text-gray-700">Try:</p>
+                                    <ul className="space-y-2 font-body text-sm text-gray-600">
+                                        <li>Using different keywords</li>
+                                        <li>Checking your spelling</li>
+                                        {(filters.category || filters.city || filters.priceFilter || filters.dateFilter) && (
+                                            <li>Removing some filters</li>
+                                        )}
+                                        <li>Browsing all events instead</li>
+                                    </ul>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    {(filters.category || filters.city || filters.priceFilter || filters.dateFilter) && (
+                                        <Button variant="secondary" size="lg" onClick={handleClearFilters}>
+                                            Clear Filters
+                                        </Button>
+                                    )}
+                                    <Button variant="primary" size="lg" onClick={() => navigate('/events')}>
+                                        Browse All Events
+                                    </Button>
+                                </div>
                             </div>
                         ) : (
                             <>

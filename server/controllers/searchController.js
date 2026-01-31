@@ -65,6 +65,20 @@ export const naturalLanguageSearch = async (req, res) => {
             }
         }
 
+        // If no meaningful parameters were extracted, use text search on title and description
+        const hasExtractedParams = parsedParams.category ||
+            parsedParams.location ||
+            parsedParams.budget.isFree ||
+            parsedParams.budget.maxPrice ||
+            parsedParams.timeframe.dateFrom ||
+            parsedParams.timeframe.dateTo;
+
+        if (!hasExtractedParams) {
+            // Use MongoDB text search as fallback to avoid returning all events
+            filters.$text = { $search: query };
+            console.log('[Search Debug] No params extracted - using text search fallback');
+        }
+
         console.log('[Search Debug] Original query:', query);
         console.log('[Search Debug] Parsed params:', JSON.stringify(parsedParams, null, 2));
         console.log('[Search Debug] MongoDB filters:', JSON.stringify(filters, null, 2));
