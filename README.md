@@ -38,10 +38,9 @@ Project currently under development.
 - Cloudinary for image storage
 
 ### External Services
-- Hugging Face API (NLP/AI)
-   - `facebook/bart-large-mnli` for zero-shot classification (category extraction)
+- Hugging Face
    - `sentence-transformers/all-MiniLM-L6-v2` for semantic embeddings (recommendations)
-- Mapbox API (maps and geocoding)
+- Leaflet
 - Cloudinary (Image CDN)
 - MongoDB Atlas (Database)
 
